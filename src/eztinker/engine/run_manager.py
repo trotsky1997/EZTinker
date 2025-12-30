@@ -1,33 +1,31 @@
 """Training run manager - holds state for each active run."""
-import uuid
+
 import threading
-import os
-from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Any
+
 import torch
-from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft import LoraConfig, get_peft_model, get_peft_model_state_dict, set_peft_model_state_dict
-from ..models.api import BatchInput, LoRAConfig, OptimParams, EvaluationBatch
+from peft import LoraConfig, get_peft_model, get_peft_model_state_dict
+from torch.utils.data import DataLoader, Dataset
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from ..models.api import BatchInput, EvaluationBatch, LoRAConfig, OptimParams
 
 
 class TrainingDataset(Dataset):
     """In-memory dataset for training batches."""
 
-    def __init__(self, batches: List[Dict]):
+    def __init__(self, batches: list[dict]):
         self.batches = batches
 
     def __len__(self):
         return len(self.batches)
 
-    def __getitem__(self, idx) -> dict:
+    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:  # type: ignore
         batch = self.batches[idx]
         return {
             "input_ids": torch.tensor(batch["input_ids"], dtype=torch.long),
-            "labels": torch.tensor(
-                batch.get("target_ids", batch["input_ids"]), dtype=torch.long
-            ),
+            "labels": torch.tensor(batch.get("target_ids", batch["input_ids"]), dtype=torch.long),
         }
 
 
@@ -45,7 +43,7 @@ class TrainingRun:
         self.base_model = base_model
         self.device = device
         self.lock = threading.Lock()
-        self.batches: List[Dict] = []
+        self.batches: list[dict] = []
 
         # Initialize model and optimizer
         self.tokenizer = AutoTokenizer.from_pretrained(base_model)
@@ -88,7 +86,7 @@ class TrainingRun:
                 }
             )
 
-    def forward_backward(self, accumulation_steps: int = 1) -> Dict:
+    def forward_backward(self, accumulation_steps: int = 1) -> dict:
         """Perform forward and backward pass on accumulated batches."""
         with self.lock:
             if not self.batches:
@@ -127,7 +125,7 @@ class TrainingRun:
                 "batches": step_count,
             }
 
-    def optim_step(self, optim_params: OptimParams) -> Dict:
+    def optim_step(self, optim_params: OptimParams) -> dict:
         """Perform optimizer step."""
         with self.lock:
             if self.optimizer is None or self.optim_params != optim_params:
@@ -149,7 +147,7 @@ class TrainingRun:
 
     def save_checkpoint(
         self, checkpoint_dir: str, name: str, sampler_optimized: bool = False
-    ) -> Dict:
+    ) -> dict:
         """Save checkpoint (adapter + optimizer)."""
         with self.lock:
             run_dir = Path(checkpoint_dir) / self.run_id
@@ -161,7 +159,6 @@ class TrainingRun:
                 # Save model adapter in safetensors (sampler-optimized)
                 adapter_path = base_path.with_suffix(".adapter.safetensors")
                 from safetensors.numpy import save_file
-                from transformers import AutoModelForCausalLM
 
                 # Get adapter weights
                 state_dict = {
@@ -185,12 +182,10 @@ class TrainingRun:
 
             return {
                 "adapter_path": str(adapter_path),
-                "optimizer_path": str(opt_path)
-                if self.optimizer is not None
-                else None,
+                "optimizer_path": str(opt_path) if self.optimizer is not None else None,
             }
 
-    def evaluate_responses(self, batches: List[EvaluationBatch]) -> Dict:
+    def evaluate_responses(self, batches: list[EvaluationBatch]) -> dict:
         """Evaluate multiple responses using loss as scoring metric.
 
         Args:
@@ -208,8 +203,12 @@ class TrainingRun:
         with torch.no_grad():
             for batch in batches:
                 # Convert to tensors
-                input_ids = torch.tensor(batch.input_ids, dtype=torch.long).unsqueeze(0).to(self.device)
-                target_ids = torch.tensor(batch.target_ids, dtype=torch.long).unsqueeze(0).to(self.device)
+                input_ids = (
+                    torch.tensor(batch.input_ids, dtype=torch.long).unsqueeze(0).to(self.device)
+                )
+                target_ids = (
+                    torch.tensor(batch.target_ids, dtype=torch.long).unsqueeze(0).to(self.device)
+                )
 
                 # Compute loss for this response
                 inputs = {"input_ids": input_ids, "labels": target_ids}
@@ -225,9 +224,7 @@ class TrainingRun:
                 # Get log probs for actual tokens (shift by 1 for next token prediction)
                 target_tokens = target_ids[:, 1:]  # Remove first token (no prediction before it)
                 token_log_probs = torch.gather(
-                    log_probs_for_tokens[:, :-1, :],
-                    dim=2,
-                    index=target_tokens.unsqueeze(-1)
+                    log_probs_for_tokens[:, :-1, :], dim=2, index=target_tokens.unsqueeze(-1)
                 )
                 avg_log_prob = token_log_probs.mean().item()
 

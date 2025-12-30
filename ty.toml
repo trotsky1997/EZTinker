@@ -1,0 +1,29 @@
+# Ty config for “vibe coding” + Claude Code
+# 目标：把类型检查变成门禁，警告也算失败，且禁止滥用 ignore 注释
+
+[terminal]
+error-on-warning = true
+
+[environment]
+python-version = "3.12"
+
+[rules]
+# 防“糊弄”三板斧：无用 ignore、错误 ignore、缺失导入/属性
+unused-ignore-comment = "warn"
+invalid-ignore-comment = "warn"
+possibly-missing-import = "error"
+possibly-missing-attribute = "error"
+
+# 让测试更松一点（按需调整）
+[[overrides]]
+include = ["tests/**", "**/test_*.py"]
+[overrides.rules]
+possibly-missing-import = "warn"
+possibly-missing-attribute = "warn"
+
+# 自动生成/迁移文件通常不值得严格类型约束（按需调整/删除）
+[[overrides]]
+include = ["generated/**", "migrations/**"]
+[overrides.rules]
+possibly-missing-import = "ignore"
+possibly-missing-attribute = "ignore"

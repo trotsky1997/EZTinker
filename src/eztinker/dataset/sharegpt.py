@@ -8,17 +8,16 @@ Supports:
 
 import json
 import random
-from pathlib import Path
-from typing import List, Dict, Tuple, Optional, Union, Literal
 import warnings
+from pathlib import Path
+from typing import Literal
 
 try:
     from pydantic import ValidationError
 except ImportError:
-    ValidationError = Exception
+    ValidationError = Exception  # type: ignore
 
 # Note: BaseDataset import removed (not needed for this implementation)
-from ..models.api import ShareGPTConversation, ShareGPTMessage
 
 
 class ShareGPTDataset:
@@ -43,15 +42,15 @@ class ShareGPTDataset:
 
     def __init__(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         tokenizer,
         max_length: int = 2048,
         min_length: int = 10,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         strict: bool = True,
-        max_samples: Optional[int] = None,
+        max_samples: int | None = None,
         shuffle: bool = False,
-        seed: int = 42
+        seed: int = 42,
     ):
         """Initialize ShareGPT dataset.
 
@@ -79,30 +78,30 @@ class ShareGPTDataset:
             random.seed(seed)
 
         # Conversation storage (normalized format)
-        self.conversations: List[Dict] = []
+        self.conversations: list[dict] = []
 
         # Statistics
-        self.stats = {
+        self.stats: dict[str, int | dict[str, int]] = {
             "total_loaded": 0,
             "valid_conversations": 0,
             "invalid_conversations": 0,
             "total_turns": 0,
             "total_tokens": 0,
-            "dialect_counts": {"from_value": 0, "role_content": 0, "mixed": 0}
+            "dialect_counts": {"from_value": 0, "role_content": 0, "mixed": 0},
         }
 
         self._load_and_prepare()
 
-    def _load_file(self) -> List[dict]:
+    def _load_file(self) -> list[dict]:
         """Load JSON or JSONL file."""
-        with open(self.file_path, 'r', encoding='utf-8') as f:
-            if self.file_path.suffix == '.jsonl':
+        with open(self.file_path, encoding="utf-8") as f:
+            if self.file_path.suffix == ".jsonl":
                 return [json.loads(line) for line in f if line.strip()]
             else:
                 data = json.load(f)
                 return data if isinstance(data, list) else [data]
 
-    def _normalize_turn(self, turn: dict) -> Optional[Tuple[str, str]]:
+    def _normalize_turn(self, turn: dict) -> tuple[str, str] | None:
         """Normalize a conversation turn to (role, content).
 
         Supports both dialects:
@@ -131,7 +130,7 @@ class ShareGPTDataset:
         # Invalid turn
         return None
 
-    def _validate_conversation(self, turns: List[Tuple[str, str]]) -> bool:
+    def _validate_conversation(self, turns: list[tuple[str, str]]) -> bool:
         """Validate conversation structure.
 
         Rules:
@@ -149,7 +148,7 @@ class ShareGPTDataset:
 
         # Check alternation
         for i in range(len(turns) - 1):
-            if turns[i][0] == turns[i+1][0]:
+            if turns[i][0] == turns[i + 1][0]:
                 return False
 
         # Check content
@@ -159,7 +158,9 @@ class ShareGPTDataset:
 
         return True
 
-    def _detect_dialect(self, raw_conversation: dict) -> Literal["from_value", "role_content", "mixed"]:
+    def _detect_dialect(
+        self, raw_conversation: dict
+    ) -> Literal["from_value", "role_content", "mixed"]:
         """Detect which dialect this conversation uses."""
         messages = raw_conversation.get("messages") or raw_conversation.get("conversations", [])
 
@@ -185,7 +186,7 @@ class ShareGPTDataset:
         print(f"  Found {len(raw_data)} entries in file")
 
         if self.max_samples:
-            raw_data = raw_data[:self.max_samples]
+            raw_data = raw_data[: self.max_samples]
             print(f"  Limited to {self.max_samples} samples")
 
         # Process each conversation
@@ -201,7 +202,7 @@ class ShareGPTDataset:
                 if not messages:
                     if self.strict:
                         raise ValueError(f"Conversation {idx} has no messages")
-                    self.stats["invalid_conversations"] += 1
+                    self.stats["invalid_conversations"] += 1  # type: ignore
                     continue
 
                 # Normalize turns
@@ -215,24 +216,26 @@ class ShareGPTDataset:
 
                 # Validate conversation
                 if not self._validate_conversation(normalized_turns):
-                    self.stats["invalid_conversations"] += 1
+                    self.stats["invalid_conversations"] += 1  # type: ignore
                     if self.strict:
                         raise ValueError(f"Invalid conversation structure at {idx}")
                     continue
 
                 # Add to conversations
-                self.conversations.append({
-                    "id": raw_conv.get("id", f"conv_{idx}"),
-                    "turns": normalized_turns,
-                    "system": raw_conv.get("system", self.system_prompt),
-                    "dataset": raw_conv.get("dataset", "unknown")
-                })
+                self.conversations.append(
+                    {
+                        "id": raw_conv.get("id", f"conv_{idx}"),
+                        "turns": normalized_turns,
+                        "system": raw_conv.get("system", self.system_prompt),
+                        "dataset": raw_conv.get("dataset", "unknown"),
+                    }
+                )
 
-                self.stats["valid_conversations"] += 1
-                self.stats["total_turns"] += len(normalized_turns)
+                self.stats["valid_conversations"] += 1  # type: ignore
+                self.stats["total_turns"] += len(normalized_turns)  # type: ignore
 
             except Exception as e:
-                self.stats["invalid_conversations"] += 1
+                self.stats["invalid_conversations"] += 1  # type: ignore
                 if self.strict:
                     raise
                 else:
@@ -248,19 +251,28 @@ class ShareGPTDataset:
 
     def _print_summary(self):
         """Print loading summary."""
-        print(f"\n=== ShareGPT Dataset Summary ===")
+        print("\n=== ShareGPT Dataset Summary ===")
         print(f"Total entries loaded: {self.stats['total_loaded']}")
         print(f"Valid conversations: {self.stats['valid_conversations']}")
         print(f"Invalid conversations: {self.stats['invalid_conversations']}")
         print(f"Total turns: {self.stats['total_turns']}")
 
-        if self.stats['valid_conversations'] > 0:
-            print(f"Avg turns/conversation: {self.stats['total_turns'] / self.stats['valid_conversations']:.1f}")
+        # Type guard for integer comparison and division
+        valid_conv = self.stats["valid_conversations"]
+        total_turns = self.stats["total_turns"]
+        assert isinstance(valid_conv, int), "valid_conversations should be int"
+        assert isinstance(total_turns, int), "total_turns should be int"
+        if valid_conv > 0:
+            print(
+                f"Avg turns/conversation: {total_turns / valid_conv:.1f}"
+            )
 
-        print(f"\nDialects detected:")
-        for dialect, count in self.stats["dialect_counts"].items():
-            if count > 0:
-                print(f"  {dialect}: {count}")
+        print("\nDialects detected:")
+        dialect_counts = self.stats["dialect_counts"]
+        if isinstance(dialect_counts, dict):
+            for dialect, count in dialect_counts.items():
+                if int(count) > 0:
+                    print(f"  {dialect}: {count}")
         print()
 
     def format_conversation_qwen2(self, conversation: dict) -> str:
@@ -290,17 +302,17 @@ class ShareGPTDataset:
 
         return "".join(parts)
 
-    def get_conversation_turns(self, idx: int) -> Tuple[str, str, str]:
+    def get_conversation_turns(self, idx: int) -> tuple[str, str, int]:
         """Get conversation by index.
 
         Returns:
-            (id, formatted_text, num_turns)
+            (conversation_id, formatted_text, num_turns)
         """
         conv = self.conversations[idx]
         formatted = self.format_conversation_qwen2(conv)
         return conv["id"], formatted, len(conv["turns"])
 
-    def get_training_turn(self, idx: int, turn_idx: int) -> Optional[Dict]:
+    def get_training_turn(self, idx: int, turn_idx: int) -> dict | None:
         """Get a specific turn from a conversation for training.
 
         Returns dict with:
@@ -321,18 +333,14 @@ class ShareGPTDataset:
         prompt_conv = {
             "id": conv["id"],
             "system": conv["system"],
-            "turns": prompt_turns + [(response_role, response_content)]
+            "turns": prompt_turns + [(response_role, response_content)],
         }
 
         # Format full text
         full_text = self.format_conversation_qwen2(conv)
 
         # Get prompt text (everything before assistant response)
-        prompt_conv_for_prompt = {
-            "id": conv["id"],
-            "system": conv["system"],
-            "turns": prompt_turns
-        }
+        prompt_conv_for_prompt = {"id": conv["id"], "system": conv["system"], "turns": prompt_turns}
         prompt_text = self.format_conversation_qwen2(prompt_conv_for_prompt)
 
         return {
@@ -340,10 +348,10 @@ class ShareGPTDataset:
             "response": response_content,
             "full_text": full_text,
             "conversation_id": conv["id"],
-            "turn_index": turn_idx
+            "turn_index": turn_idx,
         }
 
-    def tokenize_for_training(self, idx: int, turn_idx: int = -1) -> Dict:
+    def tokenize_for_training(self, idx: int, turn_idx: int = -1) -> dict:
         """Tokenize a conversation for training.
 
         Args:
@@ -362,36 +370,33 @@ class ShareGPTDataset:
             max_length=self.max_length,
             padding=False,
             truncation=True,
-            return_tensors="pt"
+            return_tensors="pt",
         )
 
         return {
             "input_ids": tokens["input_ids"].squeeze(0).tolist(),
             "attention_mask": tokens["attention_mask"].squeeze(0).tolist(),
             "conversation_id": conv["id"],
-            "num_turns": len(conv["turns"])
+            "num_turns": len(conv["turns"]),
         }
 
-    def export_to_jsonl(self, output_path: Union[str, Path]):
+    def export_to_jsonl(self, output_path: str | Path):
         """Export normalized conversations to JSONL format."""
         output_path = Path(output_path)
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             for conv in self.conversations:
                 # Convert to ShareGPT format (role/content dialect)
-                messages = [
-                    {"role": role, "content": content}
-                    for role, content in conv["turns"]
-                ]
+                messages = [{"role": role, "content": content} for role, content in conv["turns"]]
 
                 export_item = {
                     "id": conv["id"],
                     "messages": messages,
                     "system": conv["system"],
-                    "dataset": conv["dataset"]
+                    "dataset": conv["dataset"],
                 }
 
-                f.write(json.dumps(export_item, ensure_ascii=False) + '\n')
+                f.write(json.dumps(export_item, ensure_ascii=False) + "\n")
 
         print(f"✅ Exported {len(self.conversations)} conversations to {output_path}")
 
@@ -399,6 +404,6 @@ class ShareGPTDataset:
         """Number of conversations."""
         return len(self.conversations)
 
-    def __getitem__(self, idx: int) -> Dict:
+    def __getitem__(self, idx: int) -> dict:
         """Get conversation by index."""
         return self.conversations[idx]

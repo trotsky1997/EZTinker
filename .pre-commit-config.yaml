@@ -1,25 +1,39 @@
 # 简化的 Pre-commit hooks
 # 只保留核心检查：Ruff + Pyright
 repos:
-  # Ruff: 格式化 + lint
+  # Ruff: 三阶段处理（导入排序 -> 完整 lint -> 格式化）
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.2
     hooks:
+      # 1. 仅格式化，包含导入排序
+      - id: ruff-format
+        name: "Ruff: 格式化"
+        args: [check, --fix, --select, I, --exit-non-zero-on-fix]
+        stages: [commit]
+        types: [python]
+
+      # 2. 完整 lint 检查并自动修复
       - id: ruff
-        name: "Ruff: 格式化 + Lint"
+        name: "Ruff: Lint + 自动修复"
         args: [--fix, --exit-non-zero-on-fix]
         stages: [commit]
         types: [python]
 
-  # Pyright: 类型检查
-  - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.391
+      # 3. 代码格式化
+      - id: ruff-format
+        name: "Ruff: 代码格式化"
+        stages: [commit]
+        types: [python]
+
+  # Ty (astral-sh/ty): 极快类型检查
+  - repo: https://github.com/astral-sh/ty-pre-commit
+    rev: v0.0.3
     hooks:
-      - id: pyright
-        name: "Pyright: 类型检查"
-        args: [--project, pyrightconfig.json]
+      - id: ty-check
+        name: "Ty: 严格类型检查"
         verbose: true
         stages: [commit]
+        # ty 会自动读取项目根目录的 ty.toml 配置（包含 error-on-warning = true）
 
 # 配置
 fail_fast: true  # 一个失败就停止

@@ -1,28 +1,26 @@
 """GSM8K dataset loader with Math-Verify evaluation."""
 
 import re
-from typing import Dict, List, Tuple, Optional
+
 from datasets import load_dataset
 
 # Try to import math-verify for robust evaluation
 try:
     from math_verify.grader import verify as math_verify
     from math_verify.parser import parse as math_parse
+
     MATH_VERIFY_AVAILABLE = True
 except ImportError:
     MATH_VERIFY_AVAILABLE = False
-    math_verify = lambda gold, pred, **kwargs: str(gold).strip() == str(pred).strip()
-    math_parse = lambda x: x
+    math_verify = lambda gold, pred, **kwargs: str(gold).strip() == str(pred).strip()  # type: ignore
+    math_parse = lambda x: x  # type: ignore
 
 
 class GSM8KDataset:
     """GSM8K dataset wrapper with Math-Verify based evaluation."""
 
     def __init__(
-        self,
-        split: str = "train",
-        max_samples: Optional[int] = None,
-        use_math_verify: bool = False
+        self, split: str = "train", max_samples: int | None = None, use_math_verify: bool = False
     ):
         """Initialize GSM8K dataset.
 
@@ -46,11 +44,13 @@ class GSM8KDataset:
         # Parse and store data
         self.data = []
         for item in dataset:
-            self.data.append({
-                "question": item["question"],
-                "ground_truth": item["answer"],
-                "extracted_answer": self._extract_answer(item["answer"])
-            })
+            self.data.append(
+                {
+                    "question": item["question"],
+                    "ground_truth": item["answer"],
+                    "extracted_answer": self._extract_answer(item["answer"]),
+                }
+            )
 
         print(f"✓ Loaded {len(self.data)} examples")
 
@@ -59,7 +59,8 @@ class GSM8KDataset:
         if self.use_math_verify:
             print("  Initializing Math-Verify...")
             try:
-                from math_verify.verify_math_answer import instantiate_evaluator
+                from math_verify.verify_math_answer import instantiate_evaluator  # type: ignore
+
                 self.evaluator = instantiate_evaluator(
                     model="gpt-3.5-turbo",
                     model_dir=None,
@@ -88,11 +89,11 @@ class GSM8KDataset:
             answer = text.split("####")[-1].strip()
         else:
             # Fallback: extract last number
-            numbers = re.findall(r'-?\d+(?:,\d{3})*(?:\.\d+)?', text)
+            numbers = re.findall(r"-?\d+(?:,\d{3})*(?:\.\d+)?", text)
             answer = numbers[-1] if numbers else ""
         return answer
 
-    def get_example_question(self, idx: int) -> Tuple[str, str, str]:
+    def get_example_question(self, idx: int) -> tuple[str, str, str]:
         """Get example by index.
 
         Args:
@@ -116,11 +117,8 @@ class GSM8KDataset:
         return question, prompt, answer
 
     def evaluate_answer(
-        self,
-        model_response: str,
-        ground_truth_str: str,
-        question: str = ""
-    ) -> Dict:
+        self, model_response: str, ground_truth_str: str, question: str = ""
+    ) -> dict:
         """Evaluate if model response matches ground truth using multiple strategies.
 
         Now uses math-verify for robust mathematical answer comparison.
@@ -170,14 +168,16 @@ class GSM8KDataset:
                     numeric_precision=15,
                     strict=False,  # Allow more flexible matching
                     timeout_seconds=3,
-                    raise_on_error=False
+                    raise_on_error=False,
                 )
 
-                result.update({
-                    "is_correct": math_verify_result,
-                    "math_verify_result": math_verify_result,
-                    "confidence": 1.0 if math_verify_result else 0.0,
-                })
+                result.update(
+                    {
+                        "is_correct": math_verify_result,
+                        "math_verify_result": math_verify_result,
+                        "confidence": 1.0 if math_verify_result else 0.0,
+                    }
+                )
 
                 return result
 
@@ -190,13 +190,13 @@ class GSM8KDataset:
         gold_clean = self._normalize_number(ground_truth_str)
 
         # Direct string equality
-        is_equal = (pred_clean == gold_clean)
+        is_equal = pred_clean == gold_clean
 
         # Numeric equality
         is_equiv = False
         try:
-            pred_float = float(pred_clean.replace(',', ''))
-            gold_float = float(gold_clean.replace(',', ''))
+            pred_float = float(pred_clean.replace(",", ""))
+            gold_float = float(gold_clean.replace(",", ""))
             is_equiv = abs(pred_float - gold_float) < 1e-4
         except ValueError:
             pass
@@ -207,13 +207,15 @@ class GSM8KDataset:
         # Assign confidence
         confidence = 1.0 if is_equal else (0.9 if is_equiv else 0.0)
 
-        result.update({
-            "is_correct": is_correct,
-            "confidence": confidence,
-            "strategy": result.get("strategy", "basic"),
-            "is_equal": is_equal,
-            "is_equiv": is_equiv,
-        })
+        result.update(
+            {
+                "is_correct": is_correct,
+                "confidence": confidence,
+                "strategy": result.get("strategy", "basic"),
+                "is_equal": is_equal,
+                "is_equiv": is_equiv,
+            }
+        )
 
         return result
 
@@ -233,21 +235,17 @@ class GSM8KDataset:
             text = text.replace(bad, "")
 
         # Remove comma separators
-        text = text.replace(',', '')
+        text = text.replace(",", "")
 
         # Extract number
         # Try standard number
-        match = re.search(r'-?\d+(?:\.\d+)?', text)
+        match = re.search(r"-?\d+(?:\.\d+)?", text)
         if match:
             return match.group(0)
 
         return text.strip()
 
-    def _extract_prediction(
-        self,
-        model_response: str,
-        question: str = ""
-    ) -> str:
+    def _extract_prediction(self, model_response: str, question: str = "") -> str:
         """Extract numerical prediction from model response.
 
         Args:
@@ -258,22 +256,22 @@ class GSM8KDataset:
             Extracted numerical answer as string, or original text if no number found
         """
         # Remove commas from response for number extraction
-        response = model_response.replace(',', '')
+        response = model_response.replace(",", "")
 
         # Strategy 1: Look for "answer is NUMBER" pattern
-        answer_is_pattern = r'(?:the\s+)?answer\s+is\s+(-?\d+(?:\.\d+)?)'
+        answer_is_pattern = r"(?:the\s+)?answer\s+is\s+(-?\d+(?:\.\d+)?)"
         match = re.search(answer_is_pattern, response, re.IGNORECASE)
         if match:
             return match.group(1)
 
         # Strategy 2: Look for boxed answer
-        boxed_pattern = r'\\boxed\{(-?\d+(?:\.\d+)?)\}'
+        boxed_pattern = r"\\boxed\{(-?\d+(?:\.\d+)?)\}"
         match = re.search(boxed_pattern, response)
         if match:
             return match.group(1)
 
         # Strategy 3: Extract last number
-        numbers = re.findall(r'-?\d+(?:\.\d+)?', response)
+        numbers = re.findall(r"-?\d+(?:\.\d+)?", response)
         if numbers:
             return numbers[-1]
 
@@ -285,7 +283,7 @@ class GSM8KDataset:
         """Return number of examples."""
         return len(self.data)
 
-    def __getitem__(self, idx: int) -> Dict:
+    def __getitem__(self, idx: int) -> dict:
         """Get example by index."""
         return self.data[idx]
 

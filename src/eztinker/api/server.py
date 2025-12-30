@@ -1,20 +1,21 @@
 """FastAPI server for EZTinker."""
+
+import uuid
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import uuid
 
 from ..core.state import state
 from ..models.api import (
+    BatchInput,
     CreateTrainingRunRequest,
     CreateTrainingRunResponse,
-    BatchInput,
+    EvaluationRequest,
     JobResponse,
     JobResult,
-    SamplingParams,
     OptimParams,
-    EvaluationRequest,
+    SamplingParams,
 )
-
 
 app = FastAPI(
     title="EZTinker API",
@@ -24,7 +25,7 @@ app = FastAPI(
 
 
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,  # type: ignore
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
@@ -95,9 +96,7 @@ async def sample(params: SamplingParams):
         # Default model key
         model_key = "default_model"
         if model_key not in state.sampler.models:
-            state.sampler.load_model(
-                "gpt2", model_key
-            )  # TODO: make this configurable
+            state.sampler.load_model("gpt2", model_key)  # TODO: make this configurable
 
         result = state.sampler.sample(
             model_key=model_key,
@@ -109,9 +108,7 @@ async def sample(params: SamplingParams):
             do_sample=params.do_sample,
         )
 
-        job_store[job_id].update(
-            {"status": "completed", "result": {"generated_text": result}}
-        )
+        job_store[job_id].update({"status": "completed", "result": {"generated_text": result}})
         return JobResponse(job_id=job_id, status="completed")
     except Exception as e:
         job_store[job_id].update({"status": "failed", "error": str(e)})
@@ -178,10 +175,7 @@ async def evaluate_responses(run_id: str, req: EvaluationRequest):
     try:
         run = state.get_run(run_id)
         results = run.evaluate_responses(req.batches)
-        job_store[job_id].update({
-            "status": "completed",
-            "result": results
-        })
+        job_store[job_id].update({"status": "completed", "result": results})
         return JobResponse(job_id=job_id, status="completed")
     except Exception as e:
         job_store[job_id].update({"status": "failed", "error": str(e)})

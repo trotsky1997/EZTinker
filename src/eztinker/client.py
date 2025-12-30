@@ -1,15 +1,17 @@
 """EZTinker Client API - Elegant Python API for interacting with EZTinker server."""
 
-from typing import Optional, Dict, Any, List
 import time
+from typing import Any
+
 import requests
+
 from .models.api import (
     CreateTrainingRunRequest,
+    EvaluationBatch,
+    EvaluationRequest,
     LoRAConfig,
     OptimParams,
     SamplingParams,
-    EvaluationBatch,
-    EvaluationRequest,
 )
 
 
@@ -32,10 +34,10 @@ class EZTinkerClient:
         Args:
             base_url: Base URL of the EZTinker server (default: http://localhost:8000)
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self._session = requests.Session()
 
-    def health(self) -> Dict[str, Any]:
+    def health(self) -> dict[str, Any]:
         """Check server health.
 
         Returns:
@@ -46,11 +48,7 @@ class EZTinkerClient:
         return response.json()
 
     def create_run(
-        self,
-        base_model: str,
-        lora_rank: int = 8,
-        lora_alpha: int = 16,
-        run_id: Optional[str] = None
+        self, base_model: str, lora_rank: int = 8, lora_alpha: int = 16, run_id: str | None = None
     ) -> str:
         """Create a new training run.
 
@@ -69,17 +67,15 @@ class EZTinkerClient:
         """
         lora_config = LoRAConfig(r=lora_rank, lora_alpha=lora_alpha)
         request = CreateTrainingRunRequest(
-            base_model=base_model,
-            lora_config=lora_config,
-            run_id=run_id
+            base_model=base_model, lora_config=lora_config, run_id=run_id
         )
 
-        response = self._session.post(f"{self.base_url}/v1/runs", json=request.dict())
+        response = self._session.post(f"{self.base_url}/v1/runs", json=request.model_dump())
         response.raise_for_status()
         result = response.json()
         return result["run_id"]
 
-    def get_runs(self) -> List[Dict[str, Any]]:
+    def get_runs(self) -> list[dict[str, Any]]:
         """Get all active training runs.
 
         Returns:
@@ -114,7 +110,7 @@ class EZTinkerClient:
         temperature: float = 1.0,
         top_p: float = 1.0,
         top_k: int = 50,
-        do_sample: bool = True
+        do_sample: bool = True,
     ) -> str:
         """Generate text from a prompt.
 
@@ -139,10 +135,10 @@ class EZTinkerClient:
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
-            do_sample=do_sample
+            do_sample=do_sample,
         )
 
-        response = self._session.post(f"{self.base_url}/v1/sample", json=params.dict())
+        response = self._session.post(f"{self.base_url}/v1/sample", json=params.model_dump())
         response.raise_for_status()
         job = response.json()
         job_id = job["job_id"]
@@ -151,7 +147,7 @@ class EZTinkerClient:
         result = self.wait_for_job(job_id)
         return result["result"]["generated_text"]
 
-    def forward_backward(self, run_id: str, input_ids: List[int]) -> None:
+    def forward_backward(self, run_id: str, input_ids: list[int]) -> dict[str, Any]:
         """Perform forward and backward pass.
 
         Args:
@@ -162,17 +158,16 @@ class EZTinkerClient:
             >>> client.forward_backward(run_id, input_ids=[1, 2, 3, ...])
         """
         data = {"input_ids": input_ids, "target_ids": input_ids}
-        response = self._session.post(f"{self.base_url}/v1/runs/{run_id}/forward_backward", json=data)
+        response = self._session.post(
+            f"{self.base_url}/v1/runs/{run_id}/forward_backward", json=data
+        )
         response.raise_for_status()
         job = response.json()
         return self.wait_for_job(job["job_id"])
 
     def optim_step(
-        self,
-        run_id: str,
-        learning_rate: float = 2e-4,
-        weight_decay: float = 0.01
-    ) -> None:
+        self, run_id: str, learning_rate: float = 2e-4, weight_decay: float = 0.01
+    ) -> dict[str, Any]:
         """Perform optimizer step.
 
         Args:
@@ -184,7 +179,9 @@ class EZTinkerClient:
             >>> client.optim_step(run_id, learning_rate=2e-4)
         """
         params = OptimParams(learning_rate=learning_rate, weight_decay=weight_decay)
-        response = self._session.post(f"{self.base_url}/v1/runs/{run_id}/optim_step", json=params.dict())
+        response = self._session.post(
+            f"{self.base_url}/v1/runs/{run_id}/optim_step", json=params.model_dump()
+        )
         response.raise_for_status()
         job = response.json()
         return self.wait_for_job(job["job_id"])
@@ -192,10 +189,10 @@ class EZTinkerClient:
     def evaluate(
         self,
         run_id: str,
-        batches: List[EvaluationBatch],
+        batches: list[EvaluationBatch],
         temperature: float = 1.0,
-        max_new_tokens: int = 50
-    ) -> Dict[str, Any]:
+        max_new_tokens: int = 50,
+    ) -> dict[str, Any]:
         """Evaluate model on batches.
 
         Args:
@@ -219,18 +216,17 @@ class EZTinkerClient:
             >>> results = client.evaluate(run_id, batches)
         """
         request = EvaluationRequest(
-            run_id=run_id,
-            batches=batches,
-            temperature=temperature,
-            max_new_tokens=max_new_tokens
+            run_id=run_id, batches=batches, temperature=temperature, max_new_tokens=max_new_tokens
         )
 
-        response = self._session.post(f"{self.base_url}/v1/runs/{run_id}/evaluate", json=request.dict())
+        response = self._session.post(
+            f"{self.base_url}/v1/runs/{run_id}/evaluate", json=request.model_dump()
+        )
         response.raise_for_status()
         job = response.json()
         return self.wait_for_job(job["job_id"])
 
-    def save_checkpoint(self, run_id: str, name: str) -> None:
+    def save_checkpoint(self, run_id: str, name: str) -> dict[str, Any]:
         """Save a checkpoint.
 
         Args:
@@ -245,7 +241,7 @@ class EZTinkerClient:
         job = response.json()
         return self.wait_for_job(job["job_id"])
 
-    def get_checkpoints(self, run_id: str) -> List[Dict[str, Any]]:
+    def get_checkpoints(self, run_id: str) -> list[dict[str, Any]]:
         """Get all checkpoints for a run.
 
         Args:
@@ -271,10 +267,14 @@ class EZTinkerClient:
             run_id: Training run ID
             checkpoint_name: Name of checkpoint to delete
         """
-        response = self._session.delete(f"{self.base_url}/v1/runs/{run_id}/checkpoints/{checkpoint_name}")
+        response = self._session.delete(
+            f"{self.base_url}/v1/runs/{run_id}/checkpoints/{checkpoint_name}"
+        )
         response.raise_for_status()
 
-    def wait_for_job(self, job_id: str, timeout: float = 60.0, polling_interval: float = 0.5) -> Dict[str, Any]:
+    def wait_for_job(
+        self, job_id: str, timeout: float = 60.0, polling_interval: float = 0.5
+    ) -> dict[str, Any]:
         """Wait for a job to complete.
 
         Args:
