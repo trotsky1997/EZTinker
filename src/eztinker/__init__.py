@@ -1,6 +1,6 @@
 """EZTinker - Minimal Tinker clone for distributed model training.
 
-用户在本地写训练循环/算法，服务端负责把操作可靠地跑在 GPU 集群上。
+用户在本地写训练循环/算法, 服务端负责把操作可靠地跑在 GPU 集群上。
 
 Features:
 - High-level Python API for training workflows
@@ -86,24 +86,20 @@ __version__ = "0.1.0"
 __author__ = "EZTinker Team"
 
 __all__ = [
-    # Main client API
-    "EZTinkerClient",
-    # Dataset loaders
-    "GSM8KDataset",
-    "ShareGPTDataset",
-    # Rejection sampling
-    "create_training_run",
-    "generate_candidates",
-    "select_best_candidate_and_train",
-    "wait_for_job",
-    "save_buffer",
-    "load_buffer",
-    # Models
     "CreateTrainingRunRequest",
+    "EZTinkerClient",
+    "EvaluationBatch",
+    "GSM8KDataset",
     "LoRAConfig",
     "OptimParams",
     "SamplingParams",
-    "EvaluationBatch",
-    "ShareGPTMessage",
     "ShareGPTConversation",
+    "ShareGPTDataset",
+    "ShareGPTMessage",
+    "create_training_run",
+    "generate_candidates",
+    "load_buffer",
+    "save_buffer",
+    "select_best_candidate_and_train",
+    "wait_for_job",
 ]

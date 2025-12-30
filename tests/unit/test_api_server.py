@@ -193,7 +193,7 @@ class TestRequestValidation:
             "/v1/runs/fake_run_id/optim_step",
             json={"learning_rate": -0.001, "weight_decay": 0.01},
         )
-        assert response.status_code == 400  # ValueError from state.get_run
+        assert response.status_code == 422  # Pydantic validation error
 
     def test_save_checkpoint_missing_name_parameter(self, test_client, sample_run_id):
         """Test save checkpoint without name parameter."""

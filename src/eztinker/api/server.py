@@ -1,5 +1,6 @@
 """FastAPI server for EZTinker."""
 
+import os
 import uuid
 
 from fastapi import FastAPI, HTTPException
@@ -24,9 +25,19 @@ app = FastAPI(
 )
 
 
+# CORS configuration - secure by default, allow override via env var
+ALLOWED_ORIGINS = (
+    os.environ.get("EZTINKER_ALLOWED_ORIGINS", "").split(",")
+    if os.environ.get("EZTINKER_ALLOWED_ORIGINS")
+    else []
+)
+
+
 app.add_middleware(
     CORSMiddleware,  # type: ignore
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS
+    if ALLOWED_ORIGINS
+    else ["http://localhost:8000", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -56,7 +67,7 @@ async def create_training_run(req: CreateTrainingRunRequest):
             run_id=run_id, status="created", message="Training session initialized"
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.post("/v1/runs/{run_id}/forward_backward")
@@ -161,7 +172,7 @@ async def delete_run(run_id: str):
         state.delete_run(run_id)
         return {"status": "deleted", "run_id": run_id}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.post("/v1/runs/{run_id}/evaluate")

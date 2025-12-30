@@ -32,7 +32,7 @@ def _check_server_health(base_url: str, timeout: int = 3) -> bool:
     try:
         response = requests.get(f"{base_url}/health", timeout=timeout)
         return response.status_code == 200
-    except:
+    except Exception:
         return False
 
 
@@ -121,7 +121,7 @@ def create(
         console.print(f"[green]✓ Created training run: {result['run_id']}[/green]")
     except Exception as e:
         console.print(f"[red]Error creating run: {e}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command()
@@ -237,7 +237,7 @@ def save(run_id: str, name: str):
 def main():
     """EZTinker - Minimal Tinker clone for distributed model training.
 
-    用户在本地写训练循环/算法，服务端负责把操作可靠地跑在 GPU 集群上。
+    用户在本地写训练循环/算法, 服务端负责把操作可靠地跑在 GPU 集群上。
     """
 
 
@@ -262,7 +262,7 @@ def health():
         console=console,
         transient=True,
     ) as progress:
-        task = progress.add_task(description="Checking server health...")
+        progress.add_task(description="Checking server health...")
 
         if _check_server_health(base_url):
             console.print("[green]✓ Server is healthy![/green]")
@@ -271,7 +271,7 @@ def health():
                 info = response.json()
                 console.print(f"[dim]Server time: {info.get('timestamp', 'N/A')}[/dim]")
                 console.print(f"[dim]Status: {info.get('status', 'N/A')}[/dim]")
-            except:
+            except Exception:
                 pass
         else:
             console.print("[red]✗ Server is not responding[/red]")
@@ -298,7 +298,7 @@ def status():
         response.raise_for_status()
         data = response.json()
         runs = data.get("runs", [])
-    except:
+    except Exception:
         runs = []
 
     # Display status
@@ -404,7 +404,7 @@ def demo():
 
     except Exception as e:
         console.print(f"[red]Error running demo: {e}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 def _poll_job(job_id: str):

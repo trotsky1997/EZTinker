@@ -12,8 +12,12 @@ try:
     MATH_VERIFY_AVAILABLE = True
 except ImportError:
     MATH_VERIFY_AVAILABLE = False
-    math_verify = lambda gold, pred, **kwargs: str(gold).strip() == str(pred).strip()  # type: ignore
-    math_parse = lambda x: x  # type: ignore
+
+    def math_verify(gold, pred, **kwargs):
+        return str(gold).strip() == str(pred).strip()
+
+    def math_parse(x):
+        return x
 
 
 class GSM8KDataset:

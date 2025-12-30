@@ -383,7 +383,7 @@ if __name__ == "__main__":
             if response.status_code == 200:
                 print("✓ Server is running")
                 break
-        except:
+        except Exception:
             print("  Server not ready, retrying...")
             time.sleep(2)
 

@@ -1,12 +1,13 @@
 """API schemas for EZTinker."""
 
 from typing import Any
-from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field
 
 # =============================================================================
 # Environments Hub Models
 # =============================================================================
+
 
 class EnvironmentTemplate(BaseModel):
     """Environment configuration template."""
@@ -62,10 +63,12 @@ class BatchInput(BaseModel):
 class LoRAConfig(BaseModel):
     """LoRA configuration."""
 
-    r: int = Field(8, description="LoRA rank")
-    lora_alpha: int = Field(16, description="LoRA alpha")
-    lora_dropout: float = Field(0.05, description="LoRA dropout")
-    target_modules: str | list[str] = Field("all-linear", description="Target modules for LoRA (Peft auto-detect)")
+    r: int = Field(8, ge=1, description="LoRA rank (must be >= 1)")
+    lora_alpha: int = Field(16, ge=1, description="LoRA alpha (must be >= 1)")
+    lora_dropout: float = Field(0.05, ge=0.0, le=1.0, description="LoRA dropout (0.0 to 1.0)")
+    target_modules: str | list[str] = Field(
+        "all-linear", description="Target modules for LoRA (Peft auto-detect)"
+    )
 
 
 class CreateTrainingRunRequest(BaseModel):
@@ -87,8 +90,8 @@ class CreateTrainingRunResponse(BaseModel):
 class OptimParams(BaseModel):
     """Optimizer parameters."""
 
-    learning_rate: float = Field(2e-4)
-    weight_decay: float = Field(0.0)
+    learning_rate: float = Field(2e-4, gt=0, description="Learning rate (must be > 0)")
+    weight_decay: float = Field(0.0, ge=0, description="Weight decay (must be >= 0)")
     betas: tuple = Field((0.9, 0.999))
     eps: float = Field(1e-8)
 
@@ -97,10 +100,10 @@ class SamplingParams(BaseModel):
     """Sampling parameters."""
 
     prompt: str
-    max_new_tokens: int = Field(100)
-    temperature: float = Field(1.0)
-    top_p: float = Field(1.0)
-    top_k: int = Field(50)
+    max_new_tokens: int = Field(100, ge=1, le=2048, description="Max new tokens (1 to 2048)")
+    temperature: float = Field(1.0, ge=0.0, le=10.0, description="Temperature (0.0 to 10.0)")
+    top_p: float = Field(1.0, ge=0.0, le=1.0, description="Top-p (0.0 to 1.0)")
+    top_k: int = Field(50, ge=0, description="Top-k (>= 0)")
     do_sample: bool = Field(True)
 
 

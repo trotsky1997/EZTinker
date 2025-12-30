@@ -10,7 +10,7 @@ import json
 import random
 import warnings
 from pathlib import Path
-from typing import Literal
+from typing import ClassVar, Literal
 
 try:
     from pydantic import ValidationError
@@ -31,9 +31,9 @@ class ShareGPTDataset:
     - Conversation filtering and truncation
     """
 
-    VALID_FROM_VALUES = {"human", "gpt"}
-    VALID_ROLE_VALUES = {"user", "assistant"}
-    ROLE_MAPPING = {
+    VALID_FROM_VALUES: ClassVar[set[str]] = {"human", "gpt"}
+    VALID_ROLE_VALUES: ClassVar[set[str]] = {"user", "assistant"}
+    ROLE_MAPPING: ClassVar[dict[str, str]] = {
         "human": "user",
         "gpt": "assistant",
         "user": "user",
@@ -152,11 +152,7 @@ class ShareGPTDataset:
                 return False
 
         # Check content
-        for role, content in turns:
-            if not content or not isinstance(content, str):
-                return False
-
-        return True
+        return all(content and isinstance(content, str) for _, content in turns)
 
     def _detect_dialect(
         self, raw_conversation: dict
@@ -239,7 +235,7 @@ class ShareGPTDataset:
                 if self.strict:
                     raise
                 else:
-                    warnings.warn(f"Skipping conversation {idx}: {e}")
+                    warnings.warn(f"Skipping conversation {idx}: {e}", stacklevel=2)
 
         self.stats["total_loaded"] = len(raw_data)
 
@@ -325,14 +321,7 @@ class ShareGPTDataset:
 
         # Build prompt up to this turn
         prompt_turns = conv["turns"][:turn_idx]
-        response_role, response_content = conv["turns"][turn_idx]
-
-        # Format prompt
-        prompt_conv = {
-            "id": conv["id"],
-            "system": conv["system"],
-            "turns": prompt_turns + [(response_role, response_content)],
-        }
+        _response_role, response_content = conv["turns"][turn_idx]
 
         # Format full text
         full_text = self.format_conversation_qwen2(conv)
