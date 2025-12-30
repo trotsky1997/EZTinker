@@ -2,7 +2,7 @@
 
 import nox
 
-nox.options.sessions = ["fmt", "lint", "type-check", "security", "test"]
+nox.options.sessions = ["fmt", "lint", "type-check", "security", "test", "docs"]
 nox.options.reuse_existing_virtualenvs = True
 
 
@@ -73,6 +73,95 @@ def test_fast(session):
     session.install("-e", ".", "pytest")
 
     session.run("pytest", "tests/", "-m", "not slow", "-v")
+
+
+@nox.session(name="docs", python=["3.11"])
+def generate_docs(session):
+    """生成 API 文档到 documents/ 目录（使用 pydoc）。"""
+    session.install("-e", ".")
+    import pathlib
+
+    # 创建 documents 目录
+    docs_dir = pathlib.Path("documents")
+    docs_dir.mkdir(exist_ok=True)
+
+    # 要检查的模块列表
+    modules = [
+        "eztinker",
+        "eztinker.client",
+        "eztinker.models",
+        "eztinker.engine",
+        "eztinker.core",
+        "eztinker.dataset",
+        "eztinker.api",
+    ]
+
+    session.log("生成 API 文档到 documents/ 目录...")
+    for module in modules:
+        # pydoc -w 生成 HTML 文件到当前目录
+        session.run(
+            "python", "-m", "pydoc", "-w", module,
+            success_codes=[0, 1],
+        )
+
+        # 查找生成的HTML文件并移动到documents/
+        import shutil
+        import glob
+
+        # 尝试多种可能的文件命名
+        module_parts = module.split(".")
+
+        # 检查是否有类似 "eztinker.client.html" 的文件
+        html_files = [f for f in pathlib.Path(".").iterdir()
+                     if f.is_file() and f.suffix == ".html"
+                     and module_parts[-1] in f.name]
+
+        if html_files:
+            source_file = html_files[0]
+            target_name = docs_dir / f"{module.replace('.', '_')}.html"
+            shutil.move(str(source_file), str(target_name))
+            session.log(f"✓ {module} -> {target_name.name}")
+        else:
+            session.warn(f"⚠ {module} 无文档(可能是空模块)")
+
+    # 生成一个索引文件
+    index_file = docs_dir / "README.txt"
+    import datetime
+    index_content = """EZTinker API 文档索引
+====================
+
+本文档目录包含使用 pydoc 自动生成的 API 文档。
+
+文件清单:
+"""
+
+    for module in modules:
+        filename = f"{module.replace('.', '_')}.txt"
+        index_content += f"\n- {filename}\n  对应模块: {module}\n"
+
+    index_content += f"\n\n生成时间: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    index_content += "\n使用指南:\n"
+    index_content += "  运行 `uv run nox -s docs` 重新生成所有文档。\n"
+    index_content += "  文档会随着代码注释更新自动更新。\n"
+
+    index_file.write_text(index_content, encoding="utf-8")
+    session.log(f"✓ 索引文件 -> {index_file.name}")
+
+    session.log(f"\n文档生成完成! 共 {len(modules)} 个模块文档。")
+    session.log(f"打开文档: open documents/eztinker.html")
+    session.log(f"或在线查看: python -m http.server 8000 --bind 127.0.0.1")
+
+
+@nox.session(name="docs-build", python=["3.11"])
+def build_docs(session):
+    """构建完整的 Sphinx 文档（如需详细的 HTML 文档）."""
+    session.install("-e", ".", "sphinx", "sphinx-rtd-theme")
+    # 如果存在 docs/ 目录，则构建
+    if session.cwd.joinpath("docs").exists():
+        with session.chdir("docs"):
+            session.run("sphinx-build", "-b", "html", ".", "_build/html", "-W")
+    else:
+        session.warn("docs/ directory not found, skipping Sphinx build")
 
 
 @nox.session(name="clean", python=["3.11"])

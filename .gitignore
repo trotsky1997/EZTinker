@@ -22,6 +22,9 @@ data/
 .adapters/
 .eztinker/
 
+# Auto-generated API documentation
+documents/
+
 # HuggingFace cache
 .cache/
 .huggingface/
