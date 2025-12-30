@@ -1,8 +1,54 @@
 """API schemas for EZTinker."""
 
 from typing import Any
-
 from pydantic import BaseModel, Field
+
+
+# =============================================================================
+# Environments Hub Models
+# =============================================================================
+
+class EnvironmentTemplate(BaseModel):
+    """Environment configuration template."""
+
+    template_id: str = Field(description="Unique template ID")
+    name: str = Field(description="Environment template display name")
+    description: str = Field("", description="Template description")
+    model: str = Field(description="Model name (e.g., Qwen/Qwen2-0.5B-Instruct)")
+
+    # LoRA Configuration
+    lora_rank: int = Field(1, description="LoRA rank")
+    lora_alpha: int = Field(2, description="LoRA alpha")
+    lora_dropout: float = Field(0.05, description="LoRA dropout rate")
+    target_modules: str = Field("all-linear", description="LoRA target modules")
+
+    # Training configuration
+    learning_rate: float = Field(2e-4, description="Optimizer learning rate")
+    weight_decay: float = Field(0.0, description="Weight decay")
+    max_length: int = Field(2048, description="Max sequence length")
+    batch_size: int = Field(1, description="Training batch size")
+
+    # Device config
+    device: str = Field("cuda" if True else "cpu", description="Compute device")  # Simplified
+    dtype: str = Field("bfloat16", description="Model precision")
+
+    # Template tags for filtering
+    tags: list[str] = Field(default_factory=list, description="Template categories/tags")
+
+    # Usage statistics
+    usage_count: int = Field(0, description="Creation count")
+
+
+class RuntimeEnvironment(BaseModel):
+    """Runtime environment state."""
+
+    env_id: str = Field(description="Unique environment identifier")
+    template_id: str = Field(description="Environment template reference")
+    run_id: str = Field(description="Associated training run")
+    created_at: str = Field(description="Environment creation timestamp")
+    status: str = Field("active", description="Environment status")
+    running_tasks: list[str] = Field(default_factory=list, description="Active tasks/training")
+    error_message: str | None = Field(None, description="Last error message")
 
 
 class BatchInput(BaseModel):

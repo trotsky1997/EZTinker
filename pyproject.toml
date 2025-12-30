@@ -9,6 +9,7 @@ dependencies = [
     "datasets>=4.4.2",
     "fastapi>=0.128.0",
     "math-verify>=0.8.0",
+    "matplotlib>=3.10.8",
     "peft>=0.18.0",
     "pydantic>=2.12.5",
     "redis>=7.1.0",
