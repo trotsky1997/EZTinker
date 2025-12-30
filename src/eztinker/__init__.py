@@ -66,6 +66,7 @@ from .models.api import (
     CreateTrainingRunRequest,
     EvaluationBatch,
     LoRAConfig,
+    LossFunctionConfig,
     OptimParams,
     SamplingParams,
     ShareGPTConversation,
