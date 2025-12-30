@@ -91,6 +91,7 @@ __all__ = [
     "EvaluationBatch",
     "GSM8KDataset",
     "LoRAConfig",
+    "LossFunctionConfig",
     "OptimParams",
     "SamplingParams",
     "ShareGPTConversation",

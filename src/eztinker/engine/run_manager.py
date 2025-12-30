@@ -8,7 +8,8 @@ from peft import LoraConfig, get_peft_model, get_peft_model_state_dict
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from ..models.api import BatchInput, EvaluationBatch, LoRAConfig, OptimParams
+from ..models.api import BatchInput, EvaluationBatch, LoRAConfig, LossFunctionConfig, OptimParams
+from .loss import get_loss_function
 
 
 class TrainingDataset(Dataset):
@@ -36,6 +37,7 @@ class TrainingRun:
         run_id: str,
         base_model: str,
         lora_config: LoRAConfig,
+        loss_config: LossFunctionConfig | None = None,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ):
         self.run_id = run_id
@@ -43,6 +45,13 @@ class TrainingRun:
         self.device = device
         self.lock = threading.Lock()
         self.batches: list[dict] = []
+
+        # Initialize loss function
+        if loss_config is None:
+            from ..models.api import LossFunctionConfig
+
+            loss_config = LossFunctionConfig()
+        self.loss_function = get_loss_function(loss_config)
 
         # Initialize model and optimizer
         self.tokenizer = AutoTokenizer.from_pretrained(base_model)
@@ -82,6 +91,7 @@ class TrainingRun:
                 {
                     "input_ids": batch.input_ids,
                     "target_ids": batch.target_ids,
+                    "weights": batch.weights,  # Store weights if provided
                 }
             )
 
@@ -105,11 +115,19 @@ class TrainingRun:
 
             self.model.train()
             for batch in dataloader:
-                inputs = {k: v.to(self.device) for k, v in batch.items()}
+                input_ids = batch["input_ids"].to(self.device)
+                labels = batch["labels"].to(self.device)
 
-                # Forward pass
-                outputs = self.model(**inputs)
-                loss = outputs.loss / accumulation_steps
+                # Forward pass - get logits instead of computing loss
+                outputs = self.model(input_ids=input_ids, labels=labels, use_cache=False)
+                logits = outputs.logits
+
+                # Compute custom loss
+                weights = batch.get("weights")
+                if weights is not None:
+                    weights = weights.to(self.device)
+
+                loss = self.loss_function(logits, labels, weights=weights) / accumulation_steps
                 total_loss += loss.item() * accumulation_steps
 
                 # Backward

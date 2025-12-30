@@ -57,10 +57,17 @@ def _create_job() -> str:
 @app.post("/v1/runs", response_model=CreateTrainingRunResponse)
 async def create_training_run(req: CreateTrainingRunRequest):
     """Create a new training run."""
+    from ..models.api import LoRAConfig, LossFunctionConfig
+
     try:
+        # Provide defaults if None
+        lora_config = req.lora_config if req.lora_config is not None else LoRAConfig()
+        loss_config = req.loss_config if req.loss_config is not None else LossFunctionConfig()
+
         run_id = state.create_run(
             base_model=req.base_model,
-            lora_config=req.lora_config,
+            lora_config=lora_config,
+            loss_config=loss_config,
             run_id=req.run_id,
         )
         return CreateTrainingRunResponse(

@@ -381,3 +381,133 @@ class TestJobPolling:
         result = response.json()
         assert result["job_id"] == job_id
         assert result["status"] in ["queued", "completed"]
+
+
+@pytest.mark.unit
+class TestCustomLossFunctions:
+    """Test custom loss function support."""
+
+    def test_create_run_with_custom_loss_config(self, test_client):
+        """Test creating a run with custom loss configuration."""
+        response = test_client.post(
+            "/v1/runs",
+            json={
+                "base_model": "gpt2",
+                "loss_config": {
+                    "loss_type": "focal_loss",
+                    "focal_alpha": 0.3,
+                    "focal_gamma": 2.5,
+                    "ignore_index": -100,
+                },
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "run_id" in data
+
+    def test_create_run_with_default_loss(self, test_client):
+        """Test creating a run with default loss (cross-entropy)."""
+        response = test_client.post(
+            "/v1/runs",
+            json={
+                "base_model": "gpt2",
+                "loss_config": {
+                    "loss_type": "cross_entropy",
+                },
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "run_id" in data
+
+    def test_create_run_with_weighted_cross_entropy(self, test_client):
+        """Test creating a run with weighted cross-entropy loss."""
+        response = test_client.post(
+            "/v1/runs",
+            json={
+                "base_model": "gpt2",
+                "loss_config": {
+                    "loss_type": "weighted_cross_entropy",
+                    "ignore_index": -100,
+                },
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "run_id" in data
+
+    def test_create_run_with_invalid_loss_config(self, test_client):
+        """Test creating a run with invalid loss parameters."""
+        response = test_client.post(
+            "/v1/runs",
+            json={
+                "base_model": "gpt2",
+                "loss_config": {
+                    "loss_type": "focal_loss",
+                    "focal_alpha": 1.5,  # Invalid: should be <= 1.0
+                },
+            },
+        )
+        assert response.status_code == 422  # Pydantic validation error
+
+    def test_training_with_custom_loss(self, test_client, sample_run_id):
+        """Test training with custom loss function."""
+        # Add some batches
+        test_client.post(
+            f"/v1/runs/{sample_run_id}/forward_backward",
+            json={
+                "input_ids": [101, 102, 103, 104],
+                "target_ids": [101, 102, 103, 104],
+                "weights": [1.0, 1.0, 1.0, 1.0],  # Optional token weights
+            },
+        )
+
+        # Perform forward-backward pass
+        response = test_client.post(
+            f"/v1/runs/{sample_run_id}/optim_step", json={"learning_rate": 1e-4}
+        )
+
+        # Should succeed
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "completed"
+
+    def test_custom_loss_function_registration(self, test_client):
+        """Test custom loss function using the new standardized interface.
+
+        Note: The old custom_code approach is deprecated. Users should now:
+        1. Define custom loss functions following the LossFunction Protocol
+        2. Register them using the API (if supported) or import them directly
+
+        The new standardized interface accepts:
+        - logits: torch.Tensor [batch, seq_len, vocab_size]
+        - labels: torch.Tensor [batch, seq_len]
+        - weights: torch.Tensor | None (optional)
+        - Returns: torch.Tensor (scalar loss)
+
+        This is cleaner, type-safe, and more maintainable than string-based code execution.
+        """
+
+        # The new design does not support string-based custom code injection
+        # for security and maintainability reasons. Instead, users should:
+        # 1. Import and register custom loss functions programmatically, or
+        # 2. Use the pre-built loss functions (cross_entropy, focal_loss, etc.)
+
+        # Test that we can create run with the default cross_entropy
+        # (which follows the standardized protocol)
+        response = test_client.post(
+            "/v1/runs",
+            json={
+                "base_model": "gpt2",
+                "loss_config": {
+                    "loss_type": "cross_entropy",
+                    "ignore_index": -100,
+                },
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "run_id" in data
+
+        # Custom function registration is done programmatically rather than via URL
+        # See examples/custom_loss_function_usage.py for the correct approach

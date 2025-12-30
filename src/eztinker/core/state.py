@@ -14,7 +14,9 @@ class ServiceState:
         self.sampler = Sampler()
         self.lock = threading.Lock()
 
-    def create_run(self, base_model: str, lora_config, run_id: str | None = None) -> str:
+    def create_run(
+        self, base_model: str, lora_config, loss_config=None, run_id: str | None = None
+    ) -> str:
         """Create a new training run."""
         import uuid
 
@@ -28,6 +30,7 @@ class ServiceState:
                 run_id=run_id,
                 base_model=base_model,
                 lora_config=lora_config,
+                loss_config=loss_config,
             )
             self.runs[run_id] = run
 

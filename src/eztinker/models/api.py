@@ -1,6 +1,6 @@
 """API schemas for EZTinker."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -60,6 +60,24 @@ class BatchInput(BaseModel):
     weights: list[float] | None = Field(None, description="Token-level weights (optional)")
 
 
+class LossFunctionConfig(BaseModel):
+    """Custom loss function configuration."""
+
+    # Built-in loss functions
+    loss_type: Literal["cross_entropy", "weighted_cross_entropy", "focal_loss", "custom"] = Field(
+        "cross_entropy", description="Type of loss function to use"
+    )
+    # Parameters for weighted cross-entropy
+    ignore_index: int = Field(-100, description="Index to ignore in loss calculation")
+    # Parameters for focal loss
+    focal_alpha: float = Field(0.25, ge=0.0, le=1.0, description="Focal loss alpha")
+    focal_gamma: float = Field(2.0, ge=0.0, description="Focal loss gamma")
+    # Custom loss function (Python code as string)
+    custom_code: str | None = Field(None, description="Custom loss function code")
+    # Additional parameters
+    reduction: Literal["mean", "sum", "none"] = Field("mean", description="Loss reduction method")
+
+
 class LoRAConfig(BaseModel):
     """LoRA configuration."""
 
@@ -75,7 +93,8 @@ class CreateTrainingRunRequest(BaseModel):
     """Request to create a training run."""
 
     base_model: str = Field(description="HF model ID or path")
-    lora_config: LoRAConfig | None = Field(default_factory=LoRAConfig)
+    lora_config: LoRAConfig | None = None
+    loss_config: LossFunctionConfig | None = None
     run_id: str | None = Field(None, description="Custom run ID (auto-generated if None)")
 
 
