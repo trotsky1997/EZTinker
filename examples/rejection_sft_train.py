@@ -11,20 +11,21 @@ Rejection SFT Training - Full Pipeline
 
 import json
 import random
-import sys
 import re
+import sys
 from pathlib import Path
-from typing import List, Tuple, Dict
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from eztinker import EZTinkerClient
-from eztinker.dataset.gsm8k import GSM8KDataset
 import requests
 
+from eztinker import EZTinkerClient
+from eztinker.dataset.gsm8k import GSM8KDataset
+
 try:
-    from transformers import AutoModelForCausalLM, AutoTokenizer
     import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
     HAS_TRANSFORMERS = True
 except ImportError:
     HAS_TRANSFORMERS = False
@@ -35,9 +36,9 @@ def extract_answer(text: str) -> str:
     """提取答案中的数字"""
     # 找 "answer is X" 模式
     patterns = [
-        r'(?:the\s+)?answer\s+is\s+(-?\d+\.?\d*)',
-        r'answer\s*:\s*(-?\d+\.?\d*)',
-        r'(?:final\s+)?answer\s*=\s*(-?\d+\.?\d*)',
+        r"(?:the\s+)?answer\s+is\s+(-?\d+\.?\d*)",
+        r"answer\s*:\s*(-?\d+\.?\d*)",
+        r"(?:final\s+)?answer\s*=\s*(-?\d+\.?\d*)",
     ]
 
     for pattern in patterns:
@@ -46,7 +47,7 @@ def extract_answer(text: str) -> str:
             return match.group(1)
 
     # fallback: 找纯数字
-    numbers = re.findall(r'-?\d+\.?\d*', text)
+    numbers = re.findall(r"-?\d+\.?\d*", text)
     if numbers:
         return numbers[-1]  # 最后一个数字
 
@@ -60,12 +61,8 @@ def math_verify(answer_text: str, expected_answer: str) -> bool:
 
 
 def generate_with_rejection(
-    model,
-    tokenizer,
-    prompt: str,
-    expected_answer: str,
-    max_tries: int = 3
-) -> Tuple[str, bool, int]:
+    model, tokenizer, prompt: str, expected_answer: str, max_tries: int = 3
+) -> tuple[str, bool, int]:
     """生成答案，直到找到正确的或达到最大尝试次数
 
     Returns:
@@ -105,23 +102,23 @@ def generate_with_rejection(
 def run_training_loop(
     client: EZTinkerClient,
     run_id: str,
-    training_samples: List[Dict],
-    eval_samples: List[Dict],
+    training_samples: list[dict],
+    eval_samples: list[dict],
     model,
     tokenizer,
     batch_size: int = 8,
     eval_freq: int = 10,
-    num_grad_steps: int = 100
+    num_grad_steps: int = 100,
 ):
     """主训练循环"""
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Rejection SFT Training Loop")
-    print("="*80)
+    print("=" * 80)
     print(f"Batch size (positive examples): {batch_size}")
     print(f"Eval frequency: Every {eval_freq} gradient steps")
     print(f"Max gradient steps: {num_grad_steps}")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     collected_positives = []
     grad_step_count = 0
@@ -150,21 +147,25 @@ def run_training_loop(
 
         if is_correct:
             # 收集positive example
-            collected_positives.append({
-                "question": question,
-                "prompt": prompt,
-                "response": response,
-                "answer": expected_answer,
-                "input_ids": tokenizer(prompt + response, return_tensors="pt")["input_ids"][0].tolist(),
-            })
+            collected_positives.append(
+                {
+                    "question": question,
+                    "prompt": prompt,
+                    "response": response,
+                    "answer": expected_answer,
+                    "input_ids": tokenizer(prompt + response, return_tensors="pt")["input_ids"][
+                        0
+                    ].tolist(),
+                }
+            )
             total_accepted += 1
             print(f"✓ Accepted: {question[:50]}... (tries={tries})")
 
             # 攒够8个，做一次梯度下降
             if len(collected_positives) >= batch_size:
-                print(f"\n{'='*80}")
+                print(f"\n{'=' * 80}")
                 print(f"Gradient Step {grad_step_count + 1}: {len(collected_positives)} positives")
-                print(f"{'='*80}")
+                print(f"{'=' * 80}")
 
                 # 取出8个
                 batch = collected_positives[:batch_size]
@@ -190,30 +191,36 @@ def run_training_loop(
 
                     print(f"✓ Gradient step {grad_step_count} completed")
                     print(f"  Avg loss: {avg_loss:.4f}")
-                    print(f"  Collected: {total_accepted}/{total_generated} = {total_accepted/total_generated*100:.1f}%")
+                    print(
+                        f"  Collected: {total_accepted}/{total_generated} = {total_accepted / total_generated * 100:.1f}%"
+                    )
                     print(f"  Pending positives: {len(collected_positives)}")
 
                     # Eval
                     if grad_step_count % eval_freq == 0:
-                        print(f"\n{'='*80}")
+                        print(f"\n{'=' * 80}")
                         print(f"Step {grad_step_count}: Evaluation")
-                        print(f"{'='*80}")
+                        print(f"{'=' * 80}")
 
                         eval_correct, eval_total, eval_generated = run_evaluation(
                             model, tokenizer, eval_samples[:25]
                         )
 
-                        step_metrics.append({
-                            "grad_step": grad_step_count,
-                            "train_accepted": total_accepted,
-                            "train_generated": total_generated,
-                            "eval_correct": eval_correct,
-                            "eval_total": eval_total,
-                            "eval_generated": eval_generated,
-                        })
+                        step_metrics.append(
+                            {
+                                "grad_step": grad_step_count,
+                                "train_accepted": total_accepted,
+                                "train_generated": total_generated,
+                                "eval_correct": eval_correct,
+                                "eval_total": eval_total,
+                                "eval_generated": eval_generated,
+                            }
+                        )
 
-                        print(f"Eval result: {eval_correct}/{eval_total} = {eval_correct/eval_total*100:.1f}% (generated {eval_generated}x)")
-                        print(f"{'='*80}\n")
+                        print(
+                            f"Eval result: {eval_correct}/{eval_total} = {eval_correct / eval_total * 100:.1f}% (generated {eval_generated}x)"
+                        )
+                        print(f"{'=' * 80}\n")
 
                 except Exception as e:
                     print(f"⚠ Gradient step failed: {e}")
@@ -222,15 +229,13 @@ def run_training_loop(
             print(f"✗ Rejected: {question[:50]}... (tries={tries})")
 
     # 最终eval
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Final Evaluation")
-    print("="*80)
+    print("=" * 80)
 
-    eval_correct, eval_total, eval_generated = run_evaluation(
-        model, tokenizer, eval_samples[:25]
-    )
+    eval_correct, eval_total, eval_generated = run_evaluation(model, tokenizer, eval_samples[:25])
 
-    print(f"Final Eval: {eval_correct}/{eval_total} = {eval_correct/eval_total*100:.1f}%")
+    print(f"Final Eval: {eval_correct}/{eval_total} = {eval_correct / eval_total * 100:.1f}%")
     print(f"Total generated: {eval_generated}x")
 
     return {
@@ -250,7 +255,11 @@ def run_evaluation(model, tokenizer, eval_samples):
 
     for question, prompt, expected_answer in eval_samples:
         response, is_correct, tries = generate_with_rejection(
-            model, tokenizer, prompt, expected_answer, max_tries=1  # Eval只生成1次
+            model,
+            tokenizer,
+            prompt,
+            expected_answer,
+            max_tries=1,  # Eval只生成1次
         )
         total += 1
         generated += tries
@@ -263,14 +272,14 @@ def run_evaluation(model, tokenizer, eval_samples):
 
 def main():
     """主入口"""
-    print("="*80)
+    print("=" * 80)
     print("Rejection SFT Training - GSM8K")
-    print("="*80)
+    print("=" * 80)
     print("Training: 256 examples")
     print("Eval: 25 examples")
     print("Batch: 8 positive examples per gradient step")
     print("Eval frequency: Every 10 gradient steps")
-    print("="*80)
+    print("=" * 80)
 
     # 检查依赖
     if not HAS_TRANSFORMERS:
@@ -300,9 +309,9 @@ def main():
     print("✓ Model loaded")
 
     # 初始化EZTinker客户端
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Initialize EZTinker Client")
-    print("="*80)
+    print("=" * 80)
     client = EZTinkerClient(base_url="http://localhost:8000")
 
     try:
@@ -314,9 +323,9 @@ def main():
         return
 
     # 创建训练run
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Create Training Run")
-    print("="*80)
+    print("=" * 80)
     run_id = f"rejection_sft_{random.randint(1000, 9999)}"
 
     request_data = {
@@ -347,20 +356,20 @@ def main():
         tokenizer,
         batch_size=8,
         eval_freq=10,
-        num_grad_steps=20  # 先跑20步看看
+        num_grad_steps=20,  # 先跑20步看看
     )
 
     # 保存结果
     output_file = f"rejection_sft_results_{run_id}.json"
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         json.dump(results, f, indent=2)
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Training Complete!")
-    print("="*80)
+    print("=" * 80)
     print(f"Results saved to: {output_file}")
     print(f"Run ID: {run_id}")
-    print("="*80)
+    print("=" * 80)
 
 
 if __name__ == "__main__":

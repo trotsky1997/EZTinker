@@ -10,14 +10,14 @@ Rejection Sampling for GSM8K Math Training
 比标准SFT多一步sample和验证而已
 """
 
-import random
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
 from eztinker.dataset.gsm8k import GSM8KDataset
 
 
@@ -28,7 +28,8 @@ def math_verify(question: str, answer_text: str, expected_answer: str) -> bool:
     """
     # 提取数字（简单的正则版本）
     import re
-    numbers = re.findall(r'-?\d+\.?\d*', answer_text)
+
+    numbers = re.findall(r"-?\d+\.?\d*", answer_text)
 
     # 看看答案里有没有正确答案的数字
     if expected_answer in numbers:
@@ -53,9 +54,9 @@ def rejection_sft(mini_batch_size: int = 4, max_tries: int = 3):
         mini_batch_size: 生成几个答案选最好的
         max_tries: 最多试几次找正确的答案
     """
-    print("="*80)
+    print("=" * 80)
     print("Rejection Sampling SFT - GSM8K")
-    print("="*80)
+    print("=" * 80)
     print(f"mini_batch_size: {mini_batch_size}, max_tries: {max_tries}")
     print()
 
@@ -83,7 +84,7 @@ def rejection_sft(mini_batch_size: int = 4, max_tries: int = 3):
     for i in range(len(gsm8k)):
         question, prompt, expected_answer = gsm8k.get_example_question(i)
 
-        print(f"Example {i+1}: {question[:60]}...")
+        print(f"Example {i + 1}: {question[:60]}...")
         print(f"Expected: {expected_answer}")
 
         # 生成多个候选，看哪个对
@@ -110,7 +111,7 @@ def rejection_sft(mini_batch_size: int = 4, max_tries: int = 3):
             is_correct = math_verify(question, response, expected_answer)
 
             if is_correct:
-                print(f"  ✓ Try {try_idx+1}: CORRECT (temp={temp:.1f})")
+                print(f"  ✓ Try {try_idx + 1}: CORRECT (temp={temp:.1f})")
                 accepted_count += 1
 
                 # 保存对的答案用于训练
@@ -118,7 +119,7 @@ def rejection_sft(mini_batch_size: int = 4, max_tries: int = 3):
                 candidates.append(response)
                 break
             else:
-                print(f"  ✗ Try {try_idx+1}: WRONG (temp={temp:.1f})")
+                print(f"  ✗ Try {try_idx + 1}: WRONG (temp={temp:.1f})")
 
         if not candidates:
             print(f"  ⚠ Failed to generate correct answer after {max_tries} tries")
@@ -126,12 +127,12 @@ def rejection_sft(mini_batch_size: int = 4, max_tries: int = 3):
         print()
 
     # 4. Summary
-    print("="*80)
-    print(f"Accepted: {accepted_count}/{len(gsm8k)} = {accepted_count/len(gsm8k)*100:.1f}%")
+    print("=" * 80)
+    print(f"Accepted: {accepted_count}/{len(gsm8k)} = {accepted_count / len(gsm8k) * 100:.1f}%")
     print(f"Total generations: {total_generated}")
-    print("="*80)
+    print("=" * 80)
 
-    print(f"\n训练数据这样准备:")
+    print("\n训练数据这样准备:")
     print("- 对的问题: 用SFT training")
     print("- 错的问题: 丢弃 or 负向sample")
     print("- 然后在EZTinker里运行gsm8k_sft.py那套就完事了")

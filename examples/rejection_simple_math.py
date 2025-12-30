@@ -17,14 +17,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-print("="*80)
+print("=" * 80)
 print("Rejection SFT - Simple Math (100以内加减法)")
-print("="*80)
+print("=" * 80)
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-from eztinker import EZTinkerClient
 import requests
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from eztinker import EZTinkerClient
 
 # 导入自定义数据集
 sys.path.insert(0, str(Path(__file__).parent))
@@ -78,11 +79,13 @@ if resp.status_code != 200:
     sys.exit(1)
 print(f"✓ Run: {run_id}")
 
+
 # 验证函数
 def verify_answer(resp_text, expected):
     """验证答案"""
-    nums = re.findall(r'-?\d+', resp_text)
+    nums = re.findall(r"-?\d+", resp_text)
     return expected in nums if nums else False
+
 
 # 收集positive样本
 print("\n[5/6] 收集positive样本...")
@@ -93,7 +96,7 @@ for idx in range(len(train_data)):
     q, p, exp = train_data.get_example_question(idx)
 
     if (idx + 1) % 20 == 0:
-        print(f"[{idx+1}/256] Correct: {stats['correct']}, Failed: {stats['failed']}")
+        print(f"[{idx + 1}/256] Correct: {stats['correct']}, Failed: {stats['failed']}")
 
     # 生成最多10次
     found = False
@@ -101,8 +104,11 @@ for idx in range(len(train_data)):
         inputs = tokenizer(p, return_tensors="pt").to(model.device)
         with torch.no_grad():
             out = model.generate(
-                **inputs, max_new_tokens=150, temperature=0.7,
-                do_sample=True, pad_token_id=tokenizer.eos_token_id
+                **inputs,
+                max_new_tokens=150,
+                temperature=0.7,
+                do_sample=True,
+                pad_token_id=tokenizer.eos_token_id,
             )
         resp = tokenizer.decode(out[0], skip_special_tokens=True)
         stats["total_gen"] += 1
@@ -119,7 +125,7 @@ for idx in range(len(train_data)):
     if not found:
         stats["failed"] += 1
 
-print(f"✓ Collected: {len(collected)}/256 = {len(collected)/256*100:.1f}%")
+print(f"✓ Collected: {len(collected)}/256 = {len(collected) / 256 * 100:.1f}%")
 
 # 训练循环
 print("\n[6/6] 训练...")
@@ -165,8 +171,11 @@ while len(collected) >= batch_size and grad_steps < max_steps:
             inputs = tokenizer(p2, return_tensors="pt").to(model.device)
             with torch.no_grad():
                 out = model.generate(
-                    **inputs, max_new_tokens=150, temperature=0.7,
-                    do_sample=True, pad_token_id=tokenizer.eos_token_id
+                    **inputs,
+                    max_new_tokens=150,
+                    temperature=0.7,
+                    do_sample=True,
+                    pad_token_id=tokenizer.eos_token_id,
                 )
             resp2 = tokenizer.decode(out[0], skip_special_tokens=True)
 
@@ -176,21 +185,25 @@ while len(collected) >= batch_size and grad_steps < max_steps:
         eval_acc = eval_correct / len(eval_data) * 100
         print(f"    Eval: {eval_correct}/{len(eval_data)} = {eval_acc:.1f}%")
 
-        metrics.append({
-            "step": grad_steps,
-            "train_acc": stats['correct']/256*100,
-            "eval_acc": eval_acc,
-            "loss": avg_loss,
-        })
+        metrics.append(
+            {
+                "step": grad_steps,
+                "train_acc": stats["correct"] / 256 * 100,
+                "eval_acc": eval_acc,
+                "loss": avg_loss,
+            }
+        )
 
 # 保存结果
-print("\n" + "="*80)
+print("\n" + "=" * 80)
 print("训练完成！")
-print("="*80)
+print("=" * 80)
 print(f"Gradient steps: {grad_steps}")
-print(f"Train accuracy: {stats['correct']}/{256} = {stats['correct']/256*100:.1f}%")
+print(f"Train accuracy: {stats['correct']}/{256} = {stats['correct'] / 256 * 100:.1f}%")
 print(f"Total generations: {stats['total_gen']}")
-print(f"Success rate: {stats['correct']}/{stats['total_gen']} = {stats['correct']/stats['total_gen']*100:.1f}%")
+print(
+    f"Success rate: {stats['correct']}/{stats['total_gen']} = {stats['correct'] / stats['total_gen'] * 100:.1f}%"
+)
 
 results = {
     "run_id": run_id,
@@ -198,8 +211,8 @@ results = {
     "training_stats": stats,
     "metrics": metrics,
 }
-with open(f"rejection_simple_math_{run_id}.json", 'w') as f:
+with open(f"rejection_simple_math_{run_id}.json", "w") as f:
     json.dump(results, f, indent=2)
 
 print(f"\nResults saved to: rejection_simple_math_{run_id}.json")
-print("="*80)
+print("=" * 80)

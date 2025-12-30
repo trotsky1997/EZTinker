@@ -3,8 +3,8 @@
 简单的100以内加减法数据集生成器
 """
 
-import random
 import json
+import random
 
 
 class SimpleMathDataset:
@@ -33,12 +33,14 @@ class SimpleMathDataset:
 
             prompt = f"Please solve the following math problem step by step and provide your final answer.\n\nQuestion: {question}"
 
-            samples.append({
-                "question": question,
-                "prompt": prompt,
-                "answer": answer,
-                "full_text": f"{prompt}\nAnswer: Let me solve this. {question.replace('What is ', '')} = {answer}. Therefore, the answer is {answer}."
-            })
+            samples.append(
+                {
+                    "question": question,
+                    "prompt": prompt,
+                    "answer": answer,
+                    "full_text": f"{prompt}\nAnswer: Let me solve this. {question.replace('What is ', '')} = {answer}. Therefore, the answer is {answer}.",
+                }
+            )
 
         return samples
 
@@ -59,14 +61,15 @@ class SimpleMathDataset:
 
     def save(self, filename: str):
         """保存数据集"""
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             json.dump(self.samples, f, indent=2)
 
 
 def test_dataset():
     """测试数据集"""
     import sys
-    sys.path.insert(0, '.')
+
+    sys.path.insert(0, ".")
 
     print("Testing SimpleMathDataset...")
     dataset = SimpleMathDataset(num_samples=20)
@@ -75,7 +78,7 @@ def test_dataset():
 
     for i in range(5):
         q, p, a = dataset.get_example_question(i)
-        print(f"[{i+1}] Q: {q}")
+        print(f"[{i + 1}] Q: {q}")
         print(f"    A: {a}")
         print()
 

@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """Rejection SFT Mini - 从5个样本开始测试流程"""
+
 import json
-import random
 import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-print("="*80)
+print("=" * 80)
 print("Rejection SFT Mini - 5 samples test")
-print("="*80)
+print("=" * 80)
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
 from eztinker.dataset.gsm8k import GSM8KDataset
 
 # 1. 加载
@@ -39,21 +40,23 @@ acc_count = 0
 
 print("\n3. 生成和验证")
 
+
 def extract_answer(text):
     patterns = [
-        r'(?:the\s+)?answer\s+is\s+(-?\d+)',
-        r'answer\s*:\s*(-?\d+)',
+        r"(?:the\s+)?answer\s+is\s+(-?\d+)",
+        r"answer\s*:\s*(-?\d+)",
     ]
     for p in patterns:
         m = re.search(p, text.lower())
         if m:
             return m.group(1)
-    nums = re.findall(r'-?\d+', text)
+    nums = re.findall(r"-?\d+", text)
     return nums[-1] if nums else ""
+
 
 for idx in range(len(train_data)):
     q, p, exp = train_data.get_example_question(idx)
-    print(f"\n[{idx+1}/5] Q: {q[:50]}...")
+    print(f"\n[{idx + 1}/5] Q: {q[:50]}...")
     print(f"     Expected: {exp}")
 
     found = False
@@ -62,8 +65,13 @@ for idx in range(len(train_data)):
         inputs = tokenizer(p, return_tensors="pt").to(model.device)
 
         with torch.no_grad():
-            out = model.generate(**inputs, max_new_tokens=300, temperature=temp,
-                                 do_sample=True, pad_token_id=tokenizer.eos_token_id)
+            out = model.generate(
+                **inputs,
+                max_new_tokens=300,
+                temperature=temp,
+                do_sample=True,
+                pad_token_id=tokenizer.eos_token_id,
+            )
 
         resp = tokenizer.decode(out[0], skip_special_tokens=True)
         gen_count += 1
@@ -71,7 +79,7 @@ for idx in range(len(train_data)):
         ans = extract_answer(resp)
         is_correct = ans == exp
 
-        print(f"  Try {try_idx+1} (temp={temp:.1f}): {ans} {'✓' if is_correct else '✗'}")
+        print(f"  Try {try_idx + 1} (temp={temp:.1f}): {ans} {'✓' if is_correct else '✗'}")
 
         if is_correct:
             collected.append((p, resp, q, exp))
@@ -80,13 +88,13 @@ for idx in range(len(train_data)):
             break
 
     if not found:
-        print(f"  ✗ All tries failed for this question")
+        print("  ✗ All tries failed for this question")
 
 # 3. 总结
-print("\n" + "="*80)
-print(f"Accepted: {acc_count}/{gen_count} = {acc_count/gen_count*100:.1f}%")
+print("\n" + "=" * 80)
+print(f"Accepted: {acc_count}/{gen_count} = {acc_count / gen_count * 100:.1f}%")
 print(f"Collected: {len(collected)} positive examples")
-print("="*80)
+print("=" * 80)
 
 if collected:
     print("\nSample accepted:")
@@ -98,9 +106,9 @@ if collected:
 results = {
     "generated": gen_count,
     "accepted": acc_count,
-    "accuracy": acc_count/gen_count*100,
+    "accuracy": acc_count / gen_count * 100,
     "collected": len(collected),
 }
-with open("rejection_mini_results.json", 'w') as f:
+with open("rejection_mini_results.json", "w") as f:
     json.dump(results, f, indent=2)
 print("\nResults saved to: rejection_mini_results.json")

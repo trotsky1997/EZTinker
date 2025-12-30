@@ -30,10 +30,8 @@ you would typically use proper RL techniques like PPO with value models.
 """
 
 import json
-import random
 import sys
 from pathlib import Path
-from typing import List, Dict, Tuple
 
 # Add src to path for demo
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -46,6 +44,7 @@ try:
         AutoModelForSequenceClassification,
         AutoTokenizer,
     )
+
     HAS_TRANSFORMERS = True
 except ImportError:
     HAS_TRANSFORMERS = False
@@ -54,6 +53,7 @@ except ImportError:
 # =============================================================================
 # Configuration
 # =============================================================================
+
 
 class RSFConfig:
     """Configuration for Rejection Sampling Fine-tuning."""
@@ -64,11 +64,11 @@ class RSFConfig:
 
     # Rejection sampling settings
     NUM_CANDIDATES = 4  # Generate 4 responses per prompt
-    TOP_K_RATIO = 0.5   # Select top 50% (2 out of 4)
-    TEMPERATURE = 0.7   # Generation temperature
+    TOP_K_RATIO = 0.5  # Select top 50% (2 out of 4)
+    TEMPERATURE = 0.7  # Generation temperature
 
     # Training settings
-    NUM_PROMPTS = 10    # Number of training prompts
+    NUM_PROMPTS = 10  # Number of training prompts
     NUM_EPOCHS = 1
     LEARNING_RATE = 5e-5
 
@@ -82,22 +82,25 @@ class RSFConfig:
 
     @classmethod
     def print_config(cls):
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("Rejection Sampling Fine-tuning Configuration")
-        print("="*80)
+        print("=" * 80)
         print(f"Policy model: {cls.POLICY_MODEL}")
         print(f"Reward model: {cls.REWARD_MODEL or '(Synthetic)'}")
         print(f"Candidates per prompt: {cls.NUM_CANDIDATES}")
-        print(f"Acceptance ratio: {cls.TOP_K_RATIO} (top {int(cls.NUM_CANDIDATES * cls.TOP_K_RATIO)}/{cls.NUM_CANDIDATES})")
+        print(
+            f"Acceptance ratio: {cls.TOP_K_RATIO} (top {int(cls.NUM_CANDIDATES * cls.TOP_K_RATIO)}/{cls.NUM_CANDIDATES})"
+        )
         print(f"Training prompts: {cls.NUM_PROMPTS}")
         print(f"LoRA rank: {cls.LORA_R}")
         print(f"Learning rate: {cls.LEARNING_RATE}")
-        print("="*80)
+        print("=" * 80)
 
 
 # =============================================================================
 # Helper Function: Synthetic Reward Model
 # =============================================================================
+
 
 def synthetic_reward_score(text: str) -> float:
     """Compute synthetic reward score for demo purposes.
@@ -129,19 +132,19 @@ def synthetic_reward_score(text: str) -> float:
     score += length_bonus
 
     # Reasoning keywords
-    reasoning_keywords = ['explain', 'because', 'therefore', 'since', 'thus', 'hence', 'so']
+    reasoning_keywords = ["explain", "because", "therefore", "since", "thus", "hence", "so"]
     for keyword in reasoning_keywords:
         if keyword in text_lower:
             score += 0.1
 
     # Step-by-step structure
-    step_keywords = ['first', 'second', 'third', 'step', '1.', '2.', '3.']
+    step_keywords = ["first", "second", "third", "step", "1.", "2.", "3."]
     for keyword in step_keywords:
         if keyword in text_lower:
             score += 0.05
 
     # Question asking (good for clarification)
-    if '?' in text:
+    if "?" in text:
         score += 0.05
 
     # Penalize repetition
@@ -165,12 +168,10 @@ def synthetic_reward_score(text: str) -> float:
 # Rejection Sampling Functions
 # =============================================================================
 
+
 def generate_candidates(
-    model: AutoModelForCausalLM,
-    tokenizer: AutoTokenizer,
-    prompt: str,
-    num_candidates: int
-) -> List[str]:
+    model: AutoModelForCausalLM, tokenizer: AutoTokenizer, prompt: str, num_candidates: int
+) -> list[str]:
     """Generate multiple candidate responses for a prompt.
 
     Args:
@@ -212,9 +213,8 @@ def generate_candidates(
 
 
 def score_and_rank_candidates(
-    candidates: List[str],
-    reward_func
-) -> Tuple[List[Dict], float, float]:
+    candidates: list[str], reward_func
+) -> tuple[list[dict], float, float]:
     """Score candidates and return ranked list with statistics.
 
     Args:
@@ -240,10 +240,7 @@ def score_and_rank_candidates(
     return ranked, avg_score, best_score
 
 
-def select_best_responses(
-    ranked_candidates: List[Dict],
-    top_k_ratio: float
-) -> List[Dict]:
+def select_best_responses(ranked_candidates: list[dict], top_k_ratio: float) -> list[dict]:
     """Select top-K responses from ranked list.
 
     Args:
@@ -263,7 +260,8 @@ def select_best_responses(
 # Training Loop
 # =============================================================================
 
-def create_rlhf_preference_dataset(scenarios: List[str], model, tokenizer, reward_func):
+
+def create_rlhf_preference_dataset(scenarios: list[str], model, tokenizer, reward_func):
     """Create preference dataset using rejection sampling.
 
     Args:
@@ -277,58 +275,48 @@ def create_rlhf_preference_dataset(scenarios: List[str], model, tokenizer, rewar
     """
     preference_data = []
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("Generating Preference Data with Rejection Sampling")
-    print(f"{'='*80}\n")
+    print(f"{'=' * 80}\n")
 
     for i, scenario in enumerate(scenarios):
-        print(f"Scenario {i+1}/{len(scenarios)}: {scenario[:50]}...")
+        print(f"Scenario {i + 1}/{len(scenarios)}: {scenario[:50]}...")
 
         # Generate multiple candidates
-        candidates = generate_candidates(
-            model,
-            tokenizer,
-            scenario,
-            RSFConfig.NUM_CANDIDATES
-        )
+        candidates = generate_candidates(model, tokenizer, scenario, RSFConfig.NUM_CANDIDATES)
 
         # Score and rank
-        ranked, avg_score, best_score = score_and_rank_candidates(
-            candidates,
-            reward_func
-        )
+        ranked, avg_score, best_score = score_and_rank_candidates(candidates, reward_func)
 
         # Select best responses
-        selected = select_best_responses(
-            ranked,
-            RSFConfig.TOP_K_RATIO
-        )
+        selected = select_best_responses(ranked, RSFConfig.TOP_K_RATIO)
 
         # Create preference pairs: chosen is the best, rejected is the rest
         chosen = selected[0]
 
         for candidate in ranked[1:]:
             if candidate["score"] < chosen["score"]:
-                preference_data.append({
-                    "prompt": scenario,
-                    "chosen": chosen["response"],
-                    "rejected": candidate["response"],
-                    "chosen_score": chosen["score"],
-                    "rejected_score": candidate["score"],
-                })
+                preference_data.append(
+                    {
+                        "prompt": scenario,
+                        "chosen": chosen["response"],
+                        "rejected": candidate["response"],
+                        "chosen_score": chosen["score"],
+                        "rejected_score": candidate["score"],
+                    }
+                )
 
         print(f"  Generated: {len(candidates)} candidates")
-        print(f"  Accepted: {len(selected)} (avg score: {avg_score:.3f}, "
-              f"best: {best_score:.3f})")
+        print(f"  Accepted: {len(selected)} (avg score: {avg_score:.3f}, best: {best_score:.3f})")
         print()
 
     print(f"✓ Created {len(preference_data)} preference pairs")
-    print(f"{'='*80}\n")
+    print(f"{'=' * 80}\n")
 
     return preference_data
 
 
-def train_with_trl_ppo(demonstration_data: List[Dict], reward_scores: Dict[str, float]):
+def train_with_trl_ppo(demonstration_data: list[dict], reward_scores: dict[str, float]):
     """Demonstrate training with TRL PPO.
 
     Note: This is a demonstration of the concept. In production with EZTinker,
@@ -341,9 +329,9 @@ def train_with_trl_ppo(demonstration_data: List[Dict], reward_scores: Dict[str, 
     Returns:
         None
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Rejection Sampling Fine-tuning (Conceptual)")
-    print("="*80)
+    print("=" * 80)
     print("\nNote: Full TRL PPO integration with EZTinker is a major feature.")
     print("This demo shows the rejection sampling workflow using local transformers.\n")
 
@@ -354,9 +342,9 @@ def train_with_trl_ppo(demonstration_data: List[Dict], reward_scores: Dict[str, 
     print("4. Create preference pairs (chosen vs rejected)")
     print("5. Fine-tune on accepted responses with KL penalty")
 
-    print("\n" + "-"*80)
+    print("\n" + "-" * 80)
     print("Would integrate with TRL's PPOTrainer:")
-    print("-"*80)
+    print("-" * 80)
 
     print("""
     from trl import PPOTrainer, PPOConfig
@@ -384,12 +372,13 @@ def train_with_trl_ppo(demonstration_data: List[Dict], reward_scores: Dict[str, 
     # 5. Update value model to match rewards
     """)
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
 
 
 # =============================================================================
 # Main Demo Execution
 # =============================================================================
+
 
 def run_rejection_sampling_demo():
     """Main execution of rejection sampling demo."""
@@ -418,9 +407,9 @@ def run_rejection_sampling_demo():
     ]
 
     # Download and load model
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Loading Policy Model")
-    print("="*80)
+    print("=" * 80)
     print(f"\nModel: {RSFConfig.POLICY_MODEL}")
     print("This may take a few minutes on first run...\n")
 
@@ -451,20 +440,20 @@ def run_rejection_sampling_demo():
         scenarios,
         model,
         tokenizer,
-        synthetic_reward_score  # Use synthetic rewards for demo
+        synthetic_reward_score,  # Use synthetic rewards for demo
     )
 
     # Save preference data
     output_file = "rejection_sampling_preferences.json"
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         json.dump(preference_data, f, indent=2)
     print(f"✓ Saved preference data to: {output_file}")
 
     # Print sample preference pair
     if len(preference_data) > 0:
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("Sample Preference Pair")
-        print("="*80)
+        print("=" * 80)
 
         sample = preference_data[0]
         print(f"\nPrompt:\n{sample['prompt'][:150]}...")
@@ -476,26 +465,26 @@ def run_rejection_sampling_demo():
     # Demonstrate training approach
     reward_scores = {}
     for item in preference_data:
-        reward_scores[item['chosen']] = item['chosen_score']
-        reward_scores[item['rejected']] = item['rejected_score']
+        reward_scores[item["chosen"]] = item["chosen_score"]
+        reward_scores[item["rejected"]] = item["rejected_score"]
 
     train_with_trl_ppo(preference_data, reward_scores)
-    print("="*80)
+    print("=" * 80)
 
     # Summary
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Rejection Sampling Demo Complete!")
-    print("="*80)
+    print("=" * 80)
     print(f"\nGenerated {len(preference_data)} preference pairs")
     print(f"From {len(scenarios)} prompts")
     print(f"Using {RSFConfig.NUM_CANDIDATES} candidates per prompt")
     print(f"\nOutput file: {output_file}")
-    print("="*80)
+    print("=" * 80)
 
     # Explain integration
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Next Steps: EZTinker Integration")
-    print("="*80)
+    print("=" * 80)
     print("""
 To integrate this into EZTinker, you would:
 
@@ -526,7 +515,7 @@ To integrate this into EZTinker, you would:
 
 This requires significant EZTinker core development but is fully feasible!
     """)
-    print("="*80)
+    print("=" * 80)
 
 
 if __name__ == "__main__":

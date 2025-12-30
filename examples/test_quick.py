@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """快速测试版本，只处理几个样本"""
+
 import sys
-sys.path.insert(0, str(__file__).replace('/examples/test_quick.py', '/src'))
+
+sys.path.insert(0, str(__file__).replace("/examples/test_quick.py", "/src"))
 
 print("Step 1: 加载模型")
-from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 model = AutoModelForCausalLM.from_pretrained(
     "Qwen/Qwen2-0.5B-Instruct",
@@ -19,6 +21,7 @@ print("✓ 模型加载完成")
 
 print("\nStep 2: 加载数据集")
 from eztinker.dataset.gsm8k import GSM8KDataset
+
 dataset = GSM8KDataset(split="train", max_samples=5)
 print(f"✓ 数据集加载完成: {len(dataset)} samples")
 
@@ -35,9 +38,12 @@ resp = tokenizer.decode(out[0], skip_special_tokens=True)
 print(f"Response: {resp[:100]}...")
 
 import re
+
+
 def extract_answer(text):
-    nums = re.findall(r'-?\d+', text)
+    nums = re.findall(r"-?\d+", text)
     return nums[-1] if nums else "UNKNOWN"
+
 
 answer = extract_answer(resp)
 print(f"Extracted: {answer}, Expected: {exp}, Match: {answer == exp}")

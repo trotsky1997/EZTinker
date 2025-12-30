@@ -17,16 +17,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-from eztinker.dataset.gsm8k import GSM8KDataset
-from eztinker import EZTinkerClient
 import requests
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from eztinker import EZTinkerClient
+from eztinker.dataset.gsm8k import GSM8KDataset
 
-print("="*80)
+print("=" * 80)
 print("Rejection SFT - 256 training samples, 8 pos/batch, eval every 10 steps")
-print("="*80)
+print("=" * 80)
 
 # 加载模型
 print("\nLoading Qwen/Qwen2-0.5B-Instruct...")
@@ -40,7 +40,7 @@ tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B-Instruct", trust_remo
 tokenizer.pad_token = tokenizer.eos_token
 print("✓ Model loaded")
 
-#柱加载数据集
+# 柱加载数据集
 print("\nLoading GSM8K datasets...")
 train_data = GSM8KDataset(split="train", max_samples=256)
 eval_data = GSM8KDataset(split="test", max_samples=25)
@@ -81,14 +81,14 @@ print(f"✓ Training run created: {run_id}")
 def extract_answer(text):
     """提取答案数字"""
     patterns = [
-        r'(?:the\s+)?answer\s+is\s+(-?\d+\.?\d*)',
-        r'answer\s*:\s*(-?\d+\.?\d*)',
+        r"(?:the\s+)?answer\s+is\s+(-?\d+\.?\d*)",
+        r"answer\s*:\s*(-?\d+\.?\d*)",
     ]
     for p in patterns:
         m = re.search(p, text.lower())
         if m:
             return m.group(1)
-    nums = re.findall(r'-?\d+\.?\d*', text)
+    nums = re.findall(r"-?\d+\.?\d*", text)
     return nums[-1] if nums else ""
 
 
@@ -97,9 +97,9 @@ def math_verify(response, expected):
     return extract_answer(response) == expected
 
 
-print("\n" + "="*80)
+print("\n" + "=" * 80)
 print("Training Loop")
-print("="*80)
+print("=" * 80)
 
 collected = []
 grad_steps = 0
@@ -127,7 +127,7 @@ for idx in range(len(train_data)):
         total_gen += 1
 
         if math_verify(resp, exp):
-            print(f"✓ {idx+1}/256: ACCEPTED (try={try_idx+1})")
+            print(f"✓ {idx + 1}/256: ACCEPTED (try={try_idx + 1})")
             total_acc += 1
 
             # 准备训练数据
@@ -136,13 +136,13 @@ for idx in range(len(train_data)):
             collected.append(input_ids)
             break
     else:
-        print(f"✗ {idx+1}/256: REJECTED (all tries failed)")
+        print(f"✗ {idx + 1}/256: REJECTED (all tries failed)")
 
     # 攒够8个做梯度下降
     if len(collected) >= 8:
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print(f"Gradient Step {grad_steps + 1} (accepted: {total_acc}/{total_gen})")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
 
         batch = collected[:8]
         collected = collected[8:]
@@ -158,9 +158,9 @@ for idx in range(len(train_data)):
 
         # 每10步eval
         if grad_steps % 10 == 0:
-            print(f"{'='*80}")
+            print(f"{'=' * 80}")
             print(f"Evaluation at step {grad_steps}")
-            print(f"{'='*80}")
+            print(f"{'=' * 80}")
 
             eval_correct = 0
             for i in range(len(eval_data)):
@@ -181,27 +181,29 @@ for idx in range(len(train_data)):
 
             eval_acc = eval_correct / len(eval_data) * 100
             print(f"Eval: {eval_correct}/{len(eval_data)} = {eval_acc:.1f}%")
-            print(f"{'='*80}\n")
+            print(f"{'=' * 80}\n")
 
-            step_metrics.append({
-                "step": grad_steps,
-                "train_acc": total_acc/total_gen*100,
-                "eval_acc": eval_acc,
-            })
+            step_metrics.append(
+                {
+                    "step": grad_steps,
+                    "train_acc": total_acc / total_gen * 100,
+                    "eval_acc": eval_acc,
+                }
+            )
 
-print("\n" + "="*80)
+print("\n" + "=" * 80)
 print("Training Complete!")
-print("="*80)
+print("=" * 80)
 print(f"Gradient steps: {grad_steps}")
-print(f"Train accuracy: {total_acc}/{total_gen} = {total_acc/total_gen*100:.1f}%")
+print(f"Train accuracy: {total_acc}/{total_gen} = {total_acc / total_gen * 100:.1f}%")
 
 results = {
     "run_id": run_id,
     "grad_steps": grad_steps,
     "metrics": step_metrics,
 }
-with open(f"rejection_results_{run_id}.json", 'w') as f:
+with open(f"rejection_results_{run_id}.json", "w") as f:
     json.dump(results, f, indent=2)
 
 print(f"Results saved to: rejection_results_{run_id}.json")
-print("="*80)
+print("=" * 80)

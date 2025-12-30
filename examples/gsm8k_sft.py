@@ -41,9 +41,10 @@ from pathlib import Path
 # Add src to path for demo (in production, EZTinker should be installed)
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+import requests
+
 from eztinker import EZTinkerClient
 from eztinker.dataset.gsm8k import GSM8KDataset
-import requests
 
 
 def load_qwen2_tokenizer():
@@ -57,14 +58,13 @@ def load_qwen2_tokenizer():
     """
     try:
         from transformers import AutoTokenizer
+
         tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B-Instruct")
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
         return tokenizer
     except ImportError:
-        raise ImportError(
-            "transformers library required. Install: pip install transformers"
-        )
+        raise ImportError("transformers library required. Install: pip install transformers")
 
 
 def create_sft_training_data(num_samples: int = 1000):
@@ -86,12 +86,12 @@ def create_sft_training_data(num_samples: int = 1000):
         GSM8K format: Each example has a question and numerical answer.
         We format it as user question + assistant reasoning + answer.
     """
-    print("="*80)
+    print("=" * 80)
     print("Preparing SFT Training Data from GSM8K Dataset")
-    print("="*80)
+    print("=" * 80)
 
     # Load GSM8K dataset
-    print(f"\nLoading GSM8K train split...")
+    print("\nLoading GSM8K train split...")
     gsm8k = GSM8KDataset(split="train", max_samples=num_samples)
     print(f"✓ Loaded {len(gsm8k)} GSM8K training examples")
 
@@ -103,7 +103,7 @@ def create_sft_training_data(num_samples: int = 1000):
     # Qwen2 format: <|im_start|>role\ncontent<|im_end|>\n
     training_samples = []
 
-    print(f"\nFormatting examples in Qwen2 conversation format...")
+    print("\nFormatting examples in Qwen2 conversation format...")
 
     for i in range(len(gsm8k)):
         question, _, answer = gsm8k.get_example_question(i)
@@ -131,18 +131,20 @@ def create_sft_training_data(num_samples: int = 1000):
             max_length=512,
             truncation=True,
             padding="max_length",
-            return_tensors="pt"
+            return_tensors="pt",
         )
 
-        training_samples.append({
-            "question": question,
-            "answer": answer,
-            "input_ids": encoding["input_ids"][0].tolist(),
-            "attention_mask": encoding["attention_mask"][0].tolist(),
-        })
+        training_samples.append(
+            {
+                "question": question,
+                "answer": answer,
+                "input_ids": encoding["input_ids"][0].tolist(),
+                "attention_mask": encoding["attention_mask"][0].tolist(),
+            }
+        )
 
         if i == 0:
-            print(f"\nSample formatted conversation:")
+            print("\nSample formatted conversation:")
             print(f"  User: {user_message[:80]}...")
             print(f"  Assistant: {assistant_message[:80]}...")
 
@@ -164,9 +166,9 @@ def create_training_run(client: EZTinkerClient):
     """
     MODEL_NAME = "Qwen/Qwen2-0.5B-Instruct"
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Creating Training Run")
-    print("="*80)
+    print("=" * 80)
 
     print(f"\nBase model: {MODEL_NAME}")
     print("LoRA configuration:")
@@ -190,7 +192,7 @@ def create_training_run(client: EZTinkerClient):
     # Create run via API
     response = requests.post(f"{client.base_url}/v1/runs", json=request_data)
     if response.status_code != 200:
-        print(f"✗ Failed to create training run")
+        print("✗ Failed to create training run")
         print(f"  Status: {response.status_code}")
         print(f"  Response: {response.text}")
         return None
@@ -201,8 +203,9 @@ def create_training_run(client: EZTinkerClient):
     return run_id
 
 
-def run_training_loop(client: EZTinkerClient, run_id: str, training_samples: list,
-                      num_steps: int = 100):
+def run_training_loop(
+    client: EZTinkerClient, run_id: str, training_samples: list, num_steps: int = 100
+):
     """Execute training loop with real tokenized data.
 
     Args:
@@ -217,9 +220,9 @@ def run_training_loop(client: EZTinkerClient, run_id: str, training_samples: lis
     LEARNING_RATE = 5e-5
     WEIGHT_DECAY = 0.01
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Training Loop - Rank-1 LoRA SFT")
-    print("="*80)
+    print("=" * 80)
 
     print(f"\n{'Step':<6} {'Loss':<10} {'Status':<12} {'Sample ID'}")
     print("-" * 60)
@@ -240,7 +243,9 @@ def run_training_loop(client: EZTinkerClient, run_id: str, training_samples: lis
             result = client.forward_backward(run_id, input_ids)
 
             if result["status"] != "completed" or not result.get("result"):
-                print(f"{step + 1:<6} {'N/A':<10} ✗          Failed: {result.get('error', 'Unknown')}")
+                print(
+                    f"{step + 1:<6} {'N/A':<10} ✗          Failed: {result.get('error', 'Unknown')}"
+                )
                 success = False
                 break
 
@@ -254,9 +259,7 @@ def run_training_loop(client: EZTinkerClient, run_id: str, training_samples: lis
             # Optimizer step (except on last step)
             if step < num_steps - 1:
                 optimizer_result = client.optim_step(
-                    run_id,
-                    learning_rate=LEARNING_RATE,
-                    weight_decay=WEIGHT_DECAY
+                    run_id, learning_rate=LEARNING_RATE, weight_decay=WEIGHT_DECAY
                 )
                 if optimizer_result["status"] != "completed":
                     print(f"  ⚠ Optimizer warning: {optimizer_result.get('error', 'Unknown')}")
@@ -267,11 +270,11 @@ def run_training_loop(client: EZTinkerClient, run_id: str, training_samples: lis
             break
 
     if len(losses) > 0:
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print(f"Training completed {len(steps)}/{num_steps} steps")
         print(f"Initial loss: {losses[0]:.4f}")
         print(f"Final loss: {losses[-1]:.4f}")
-        print(f"Loss reduction: {(1 - losses[-1]/losses[0])*100:.1f}%")
+        print(f"Loss reduction: {(1 - losses[-1] / losses[0]) * 100:.1f}%")
 
     return steps, losses, success
 
@@ -287,26 +290,28 @@ def analyze_training_results(steps: list, losses: list):
         print("✗ No loss data to analyze")
         return
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Training Results Analysis")
-    print("="*80)
+    print("=" * 80)
 
     print(f"\nTraining completed {len(steps)} steps")
     print(f"Initial loss: {losses[0]:.4f}")
     print(f"Final loss: {losses[-1]:.4f}")
-    print(f"Average loss: {sum(losses)/len(losses):.4f}")
+    print(f"Average loss: {sum(losses) / len(losses):.4f}")
 
     # Analyze loss trend
     if len(losses) >= 3:
-        first_third = losses[:len(losses)//3]
-        last_third = losses[-len(losses)//3:]
+        first_third = losses[: len(losses) // 3]
+        last_third = losses[-len(losses) // 3 :]
 
         avg_first = sum(first_third) / len(first_third)
         avg_last = sum(last_third) / len(last_third)
 
         if avg_last < avg_first:
             reduction = (avg_first - avg_last) / avg_first * 100
-            print(f"✓ Loss improved significantly: {avg_first:.4f} → {avg_last:.4f} ({reduction:.1f}% reduction)")
+            print(
+                f"✓ Loss improved significantly: {avg_first:.4f} → {avg_last:.4f} ({reduction:.1f}% reduction)"
+            )
         else:
             print(f"⚠ Loss increased: {avg_first:.4f} → {avg_last:.4f}")
 
@@ -344,11 +349,11 @@ def save_training_data(run_id: str, steps: list, losses: list, output_dir: str =
         "steps": steps,
         "losses": losses,
         "final_loss": losses[-1],
-        "loss_reduction_percent": (1 - losses[-1]/losses[0])*100 if losses[0] > 0 else 0,
+        "loss_reduction_percent": (1 - losses[-1] / losses[0]) * 100 if losses[0] > 0 else 0,
     }
 
     output_path = Path(output_dir) / f"loss_data_{run_id}.json"
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         json.dump(loss_data, f, indent=2)
 
     print(f"✓ Loss data saved to: {output_path}")
@@ -360,20 +365,20 @@ def main():
     NUM_SAMPLES = 1000
     NUM_TRAINING_STEPS = 100
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("EZTinker SFT Training: GSM8K Math Problem Solving")
-    print("="*80)
-    print(f"Model: Qwen/Qwen2-0.5B-Instruct")
-    print(f"LoRA: Rank 1, Alpha 2, Dropout 0.05")
+    print("=" * 80)
+    print("Model: Qwen/Qwen2-0.5B-Instruct")
+    print("LoRA: Rank 1, Alpha 2, Dropout 0.05")
     print(f"Samples: {NUM_SAMPLES} real GSM8K math problems")
     print(f"Training steps: {NUM_TRAINING_STEPS}")
-    print(f"Learning rate: 5e-5 (standard SFT)")
-    print("="*80)
+    print("Learning rate: 5e-5 (standard SFT)")
+    print("=" * 80)
 
     # Step 1: Initialize client
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Step 1: Initialize EZTinker Client")
-    print("="*80)
+    print("=" * 80)
 
     client = EZTinkerClient(base_url="http://localhost:8000")
     print("✓ Client initialized")
@@ -383,7 +388,7 @@ def main():
         server_health = client.health()
         print(f"✓ Server online: {server_health}")
     except Exception as e:
-        print(f"✗ Server not reachable at http://localhost:8000")
+        print("✗ Server not reachable at http://localhost:8000")
         print(f"  Error: {e}")
         print("\n  Please start EZTinker server first!")
         print("  Run: uvicorn src.eztinker.api.server:app --host 0.0.0.0 --port 8000")
@@ -412,9 +417,9 @@ def main():
         save_training_data(run_id, steps, losses)
 
     # Step 6: Save checkpoint
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Saving Checkpoint")
-    print("="*80)
+    print("=" * 80)
 
     try:
         checkpoint_name = f"gsm8k_rank1_sft_{run_id}"
@@ -428,21 +433,21 @@ def main():
         print("  Note: This is okay - checkpoint saving depends on server configuration")
 
     # Summary
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("SFT Training Complete!")
-    print("="*80)
+    print("=" * 80)
     print(f"\nRun ID: {run_id}")
-    print(f"Model: Qwen/Qwen2-0.5B-Instruct")
-    print(f"LoRA: Rank 1, Alpha 2")
+    print("Model: Qwen/Qwen2-0.5B-Instruct")
+    print("LoRA: Rank 1, Alpha 2")
     print(f"Samples: {NUM_SAMPLES}")
     print(f"Steps completed: {len(steps) if steps else 0}/{NUM_TRAINING_STEPS}")
     if len(losses) > 0:
         print(f"Initial loss: {losses[0]:.4f}")
         print(f"Final loss: {losses[-1]:.4f}")
-        print(f"Loss reduction: {(1 - losses[-1]/losses[0])*100:.1f}%")
-    print(f"\nOutput files:")
+        print(f"Loss reduction: {(1 - losses[-1] / losses[0]) * 100:.1f}%")
+    print("\nOutput files:")
     print(f"  - loss_data_{run_id}.json")
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
 
 
 if __name__ == "__main__":

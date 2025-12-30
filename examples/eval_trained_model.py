@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """评估训练好的模型"""
-import sys
+
 import re
+import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent))
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
 from simple_math_dataset import SimpleMathDataset
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 print("评估训练好的rejection model...")
 
 import torch
+
 model = AutoModelForCausalLM.from_pretrained(
     "./rejection_output/final_model",
     device_map="auto",
@@ -30,19 +33,18 @@ for i in range(len(eval_data)):
 
     with torch.no_grad():
         out = model.generate(
-            **inputs,
-            max_new_tokens=150,
-            do_sample=False,
-            pad_token_id=tokenizer.eos_token_id
+            **inputs, max_new_tokens=150, do_sample=False, pad_token_id=tokenizer.eos_token_id
         )
 
     resp = tokenizer.decode(out[0], skip_special_tokens=True)
-    nums = re.findall(r'-?\d+', resp)
+    nums = re.findall(r"-?\d+", resp)
     res = exp in nums if nums else False
 
-    print(f"[{i+1:2d}/20] Expected: {exp:>3s}, Got: {nums[-1] if nums else 'NONE':>4s}, {'✓' if res else '✗'}")
+    print(
+        f"[{i + 1:2d}/20] Expected: {exp:>3s}, Got: {nums[-1] if nums else 'NONE':>4s}, {'✓' if res else '✗'}"
+    )
 
     if res:
         correct += 1
 
-print(f"\n评估结果: {correct}/20 = {correct/20*100:.1f}%")
+print(f"\n评估结果: {correct}/20 = {correct / 20 * 100:.1f}%")
