@@ -1,0 +1,87 @@
+[run]
+# 覆盖率配置
+
+# 源代码目录
+source = src/eztinker
+
+# 包含的路径
+include = */src/eztinker/*
+
+# 排除的路径
+omit =
+    */tests/*
+    */build/*
+    */site-packages/*
+    */.venv/*
+    */__pycache__/*
+    */__init__.py
+
+# 分支覆盖率
+branch = True
+
+# 并行执行
+parallel = True
+
+# 数据文件位置
+data_file = .coverage
+
+# 超时
+timeout = 90
+
+# 行为
+[run:concurrency]
+    multiprocessing = true
+
+[paths]
+source =
+    src/eztinker/
+    */eztinker/src/eztinker/
+
+[report]
+# 报告配置
+
+# 忽略覆盖率
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.
+    if TYPE_CHECKING:
+    @abstract
+
+# 覆盖率阈值
+precision = 2
+show_missing = True
+skip_covered = False
+
+# 包限制
+package = eztinker
+
+[format]
+# 输出格式
+output_format = HTML
+
+[html]
+# HTML报告
+directory = coverage_html
+title = EZTinker Code Coverage
+show_contexts = True
+
+[xml]
+# XML报告 (CI用)
+output = coverage.xml
+
+[lcov]
+# LCOV格式
+output = lcov.info
+
+[json]
+# JSON报告
+output = coverage.json
+
+[terminal]
+# 终端输出
+show_missing = True
+summary = True
+precision = 1

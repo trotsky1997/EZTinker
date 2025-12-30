@@ -1,0 +1,163 @@
+# Bandit security scanning configuration
+
+# 配置文件路径
+targets:
+  - src/eztinker
+  - eztinker
+
+# 排除路径
+exclude_dirs:
+  - .venv
+  - .nox
+  - .pytest_cache
+  - .git
+  - build
+  - dist
+  - htmlcov
+
+# 测试选择
+# B1xx - 各种问题
+# B2xx - 应用程序误用
+# B3xx - 黑名单函数
+# B4xx - 部分CVE
+# B5xx - 跳过程序员排错功能
+# B6xx - 混合
+tests:
+  - B201  # 数据库访问
+  - B202  # 数据库访问（内置）
+  - B301  # pickle
+  - B302  # marshal
+  - B303  # md5
+  - B304  # ciphers
+  - B305  # xml.etree.cElementTree
+  - B306  # xml.sax.make_parser
+  - B307  # eval
+  - B308  # mark_safe
+  - B309  # httpsconnection
+  - B310  # urllib.urlopen
+  - B311  # random
+  - B312  # telnetlib
+  - B313  # xml.etree
+  - B314  # xmllib
+  - B315  # ftplib
+  - B316  # pwd
+  - B317  # cPickle
+  - B318  # subprocess
+  - B319  # yaml.load
+  - B320  # input
+  - B321  # urllib
+  - B322  # pickle/cPickle
+  - B323  # unverified_context
+  - B324  # hashlib_new_insecure_functions
+  - B325  # tempnam
+  - B401  # import_telnetlib
+  - B402  # import_ftplib
+  - B403  # import_xmllib
+  - B404  # import_xml.etree
+  - B405  # import_xml.sax
+  - B406  # import_xml.dom
+  - B407  # import_xml.dom.minidom
+  - B408  # import_xml.dom.pulldom
+  - B409  # import_xml.dom.expatbuilder
+  - B410  # import_lxml
+  - B411  # import_xmlrpclib
+  - B412  # import_httpoxy
+  - B413  # import_pycrypto
+  - B414  # import_ssl
+  - B415  # import_urllib3_connectionpool
+  - B416  # import_paramiko
+  - B417  # import_weak_cryptographic_key
+  - B418  # import_pyghmi
+  - B501  # ssl_with_bad_version
+  - B502  # ssl_with_bad_defaults
+  - B503  # ssl_with_no_version
+  - B504  # ssl_with_no_cert_verification
+  - B505  # weak_cryptographic_key
+  - B506  # yaml_load
+  - B507  # ssh_no_host_key_verification
+  - B508  # snmp_insecure_version
+  - B509  # snmp_weak_cryptography
+  - B510  # django_extra_middleware
+  - B511  # django_raw_sql
+  - B512  # django_xss
+  - B513  # flask_debug_true
+  - B514  # cookie_no_httponly
+  - B515  # cookie_no_secure
+  - B516  # cookie_with_script_prefix
+  - B517  # paramiko_do_not_set_missing_host_key_policy
+  - B518  # django_mark_safe
+  - B601  # paramiko_calls
+  - B602  # subprocess_without_shell_equals_true
+  - B603  # subprocess_popen_with_shell_equals_true
+  - B604  # any_other_function_with_shell_equals_true
+  - B605  # start_process_with_no_shell_equals_true
+  - B606  # start_process_with_a_shell_equals_true
+  - B607  # start_process_with_partial_path
+  - B608  # hardcoded_sql_expressions
+  - B609  # linux_commands_wildcard_injection
+  - B610  # django_sql_injection
+  - B611  # sqlalchemy_sql_injection
+  - B612  # exec_used
+  - B613  # python27_builtin
+  - B614  # django_hardcoded_secret_key
+  - B615  # check_ip_forwarding
+  - B616  # check_world_writable_file
+  - B617  # check_file_permissions
+  - B618  # use_of_debug_parameter
+  - B619  # use_of_builtin_insecure_function
+  - B620  # use_of_unittest_patch
+  - B621  # input_function_in_python2
+  - B622  # input_function_in_python3
+  - B623  # logging_config_insecure_listen
+  - B624  # urllib_urlencode_parameter_not_quoted
+  - B625  # socket_create_connection_with_timeout
+  - B626  # use_of_insecure_function_urllib_urlretrieve
+  - B627  # use_of_insecure_function_urllib_request_urlopen
+  - B628  # use_of_insecure_function_ftp
+  - B629  # use_of_insecure_function_http
+  - B630  # use_of_insecure_function_ftplib
+  - B631  # use_of_insecure_function_urllib
+  - B632  # use_of_insecure_function_telnetlib
+  - B633  # use_of_insecure_function_xmlrpclib
+  - B634  # use_of_insecure_function_pickle
+  - B635  # use_of_insecure_function_cpickle
+  - B636  # use_of_insecure_function_shelve
+  - B637  # use_of_insecure_function_marshal
+  - B638  # use_of_insecure_function_pyyaml
+  - B639  # use_of_insecure_function_jsonpickle
+  - B640  # use_of_insecure_function_pycurl
+  - B641  # use_of_insecure_function_subprocess
+  - B642  # use_of_insecure_function_os_system
+  - B643  # use_of_insecure_function_popen
+  - B644  # use_of_insecure_function_exec
+  - B645  # use_of_insecure_function_eval
+  - B646  # use_of_insecure_function_exec_compile
+  - B647  # use_of_insecure_function_execfile
+  - B648  # use_of_insecure_function_builtin
+  - B649  # use_of_insecure_function_compiler
+  - B650  # use_of_insecure_function_codeop
+  - B651  # use_of_dangerous_function_loader
+  - B652  # use_of_dangerous_function_pickle_long
+  - B653  # use_of_dangerous_function_marshal
+
+# 跳过文件
+skips:
+  - B101  # assert_used (too many in tests)
+  - B105  # hardcoded_password_string (allow in tests)
+  - B106  # hardcoded_password_funcarg
+  - B107  # hardcoded_password_default
+  - B108  # hardcoded_tmp_directory
+
+# 异常文件
+exclude:
+  - tests/
+
+# 报告格式
+output_format: json
+output_file: bandit-report.json
+
+# 严重性级别
+severity_level: medium
+
+# 置信度级别
+confidence_level: medium

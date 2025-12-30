@@ -1,0 +1,61 @@
+[project]
+name = "eztinker"
+version = "0.1.0"
+description = "Minimal Tinker clone for distributed model training - 用户在本地写训练循环/算法，服务端负责把操作可靠地跑在 GPU 集群上。"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "accelerate>=1.12.0",
+    "datasets>=4.4.2",
+    "fastapi>=0.128.0",
+    "math-verify>=0.8.0",
+    "peft>=0.18.0",
+    "pydantic>=2.12.5",
+    "redis>=7.1.0",
+    "requests>=2.32.5",
+    "rich>=14.2.0",
+    "sentencepiece>=0.2.0",
+    "torch>=2.9.1",
+    "transformers>=4.57.3",
+    "typer>=0.21.0",
+    "uvicorn>=0.40.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+extend-select = [
+    "E",
+    "F",
+    "I",
+    "N",
+    "C4",
+    "UP",
+]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+
+[project.scripts]
+eztinker = "eztinker.cli.main:app"
+
+[build-system]
+requires = ["uv_build>=0.9.16,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    # Linting & formatting
+    "ruff>=0.8.2",
+    # Type checking
+    "pyright>=1.1.390",
+    # Testing
+    "pytest>=8.0.0",
+    # Pre-commit
+    "pre-commit>=3.7.0",
+    # Nox
+    "nox>=2024.1.20",
+]

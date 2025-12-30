@@ -1,0 +1,194 @@
+"""FastAPI server for EZTinker."""
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+import uuid
+
+from ..core.state import state
+from ..models.api import (
+    CreateTrainingRunRequest,
+    CreateTrainingRunResponse,
+    BatchInput,
+    JobResponse,
+    JobResult,
+    SamplingParams,
+    OptimParams,
+    EvaluationRequest,
+)
+
+
+app = FastAPI(
+    title="EZTinker API",
+    description="Minimal Tinker clone for distributed model training",
+    version="0.1.0",
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Simple job store
+job_store = {}
+
+
+def _create_job() -> str:
+    job_id = f"job_{uuid.uuid4().hex[:8]}"
+    job_store[job_id] = {"status": "queued", "result": None, "error": None}
+    return job_id
+
+
+@app.post("/v1/runs", response_model=CreateTrainingRunResponse)
+async def create_training_run(req: CreateTrainingRunRequest):
+    """Create a new training run."""
+    try:
+        run_id = state.create_run(
+            base_model=req.base_model,
+            lora_config=req.lora_config,
+            run_id=req.run_id,
+        )
+        return CreateTrainingRunResponse(
+            run_id=run_id, status="created", message="Training session initialized"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/v1/runs/{run_id}/forward_backward")
+async def forward_backward(run_id: str, batch: BatchInput):
+    """Add batch and perform forward-backward pass."""
+    job_id = _create_job()
+    try:
+        run = state.get_run(run_id)
+        run.add_batch(batch)
+        result = run.forward_backward(accumulation_steps=1)
+        job_store[job_id].update({"status": "completed", "result": result})
+        return JobResponse(job_id=job_id, status="completed")
+    except Exception as e:
+        job_store[job_id].update({"status": "failed", "error": str(e)})
+        return JobResponse(job_id=job_id, status="failed")
+
+
+@app.post("/v1/runs/{run_id}/optim_step")
+async def optim_step(run_id: str, optim_params: OptimParams):
+    """Perform optimizer step."""
+    job_id = _create_job()
+    try:
+        run = state.get_run(run_id)
+        result = run.optim_step(optim_params)
+        job_store[job_id].update({"status": "completed", "result": result})
+        return JobResponse(job_id=job_id, status="completed")
+    except Exception as e:
+        job_store[job_id].update({"status": "failed", "error": str(e)})
+        return JobResponse(job_id=job_id, status="failed")
+
+
+@app.post("/v1/sample")
+async def sample(params: SamplingParams):
+    """Generate text from prompt."""
+    job_id = _create_job()
+    try:
+        # Default model key
+        model_key = "default_model"
+        if model_key not in state.sampler.models:
+            state.sampler.load_model(
+                "gpt2", model_key
+            )  # TODO: make this configurable
+
+        result = state.sampler.sample(
+            model_key=model_key,
+            prompt=params.prompt,
+            max_new_tokens=params.max_new_tokens,
+            temperature=params.temperature,
+            top_p=params.top_p,
+            top_k=params.top_k,
+            do_sample=params.do_sample,
+        )
+
+        job_store[job_id].update(
+            {"status": "completed", "result": {"generated_text": result}}
+        )
+        return JobResponse(job_id=job_id, status="completed")
+    except Exception as e:
+        job_store[job_id].update({"status": "failed", "error": str(e)})
+        return JobResponse(job_id=job_id, status="failed")
+
+
+@app.post("/v1/runs/{run_id}/save")
+async def save_state(run_id: str, name: str):
+    """Save checkpoint."""
+    job_id = _create_job()
+    try:
+        import os
+
+        checkpoint_dir = os.environ.get("CHECKPOINTS_DIR", "checkpoints")
+        run = state.get_run(run_id)
+        outputs = run.save_checkpoint(checkpoint_dir, name, sampler_optimized=False)
+
+        job_store[job_id].update({"status": "completed", "result": outputs})
+        return JobResponse(job_id=job_id, status="completed")
+    except Exception as e:
+        job_store[job_id].update({"status": "failed", "error": str(e)})
+        return JobResponse(job_id=job_id, status="failed")
+
+
+@app.get("/v1/jobs/{job_id}", response_model=JobResult)
+async def get_job_result(job_id: str):
+    """Get job result."""
+    if job_id not in job_store:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    entry = job_store[job_id]
+    return JobResult(
+        job_id=job_id,
+        status=entry["status"],
+        result=entry.get("result"),
+        error=entry.get("error"),
+    )
+
+
+@app.get("/v1/runs")
+async def list_runs():
+    """List all active training runs."""
+    return {"runs": state.list_runs()}
+
+
+@app.delete("/v1/runs/{run_id}")
+async def delete_run(run_id: str):
+    """Delete a training run."""
+    try:
+        state.delete_run(run_id)
+        return {"status": "deleted", "run_id": run_id}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/v1/runs/{run_id}/evaluate")
+async def evaluate_responses(run_id: str, req: EvaluationRequest):
+    """Evaluate multiple responses and return scores (loss values).
+
+    This endpoint computes model loss for each prompt+response pair,
+    which can be used for rejection sampling to select the best response.
+    """
+    job_id = _create_job()
+    try:
+        run = state.get_run(run_id)
+        results = run.evaluate_responses(req.batches)
+        job_store[job_id].update({
+            "status": "completed",
+            "result": results
+        })
+        return JobResponse(job_id=job_id, status="completed")
+    except Exception as e:
+        job_store[job_id].update({"status": "failed", "error": str(e)})
+        return JobResponse(job_id=job_id, status="failed")
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "ok"}

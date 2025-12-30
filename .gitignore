@@ -1,0 +1,57 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Modeling
+checkpoints/
+data/
+*.adapter.pt
+*.optimizer.pt
+.adapters/
+.eztinker/
+
+# HuggingFace cache
+.cache/
+.huggingface/
+
+# CUDA/kernels
+*.cubin
+*.cuda
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.nox/
+coverage.xml
+coverage.json
+*.lcov
+.ptw_cache/
+.benchmarks/
+.hypothesis/
+
+# Security & quality
+bandit-report.json
+deptry.json
+.deptry.json
+semgrep.sarif
+*.sarif
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store

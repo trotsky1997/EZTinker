@@ -1,0 +1,41 @@
+[tool.ty]
+# Ty configuration for EZTinker
+
+# Path specification
+# - default: Run on all Python files in source directory
+# - customize: Run on specific paths
+# paths = ["src/eztinker/"]
+
+# Type check all files (not just those imported)
+all = true
+
+# Extra strictness
+# - Turn on as many rules as possible
+# (already defaults to comprehensive behavior)
+# strict = false
+
+# Show dependency diagnostics
+deps = true
+
+# Path to project root
+root = "."
+
+# Python version for type checking
+python_version = "3.11"
+
+# Parallel execution
+threads = 0  # Use all available cores
+
+# Extensions to check
+include = ["*.py"]
+exclude = [
+    ".*",
+    "__pycache__",
+    "*.egg-info",
+    ".venv",
+    "venv",
+    "node_modules",
+    ".pytest_cache",
+    "build",
+    "dist",
+]
