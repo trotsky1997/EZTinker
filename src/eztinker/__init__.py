@@ -61,25 +61,25 @@ from .client import EZTinkerClient
 # Dataset loaders
 from .dataset import GSM8KDataset, ShareGPTDataset
 
+# Models
+from .models.api import (
+    CreateTrainingRunRequest,
+    EvaluationBatch,
+    LoRAConfig,
+    OptimParams,
+    SamplingParams,
+    ShareGPTConversation,
+    ShareGPTMessage,
+)
+
 # Rejection sampling utilities
 from .rl.rejection_sampler import (
     create_training_run,
     generate_candidates,
+    load_buffer,
+    save_buffer,
     select_best_candidate_and_train,
     wait_for_job,
-    save_buffer,
-    load_buffer,
-)
-
-# Models
-from .models.api import (
-    CreateTrainingRunRequest,
-    LoRAConfig,
-    OptimParams,
-    SamplingParams,
-    EvaluationBatch,
-    ShareGPTMessage,
-    ShareGPTConversation,
 )
 
 __version__ = "0.1.0"

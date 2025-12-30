@@ -263,9 +263,7 @@ class ShareGPTDataset:
         assert isinstance(valid_conv, int), "valid_conversations should be int"
         assert isinstance(total_turns, int), "total_turns should be int"
         if valid_conv > 0:
-            print(
-                f"Avg turns/conversation: {total_turns / valid_conv:.1f}"
-            )
+            print(f"Avg turns/conversation: {total_turns / valid_conv:.1f}")
 
         print("\nDialects detected:")
         dialect_counts = self.stats["dialect_counts"]

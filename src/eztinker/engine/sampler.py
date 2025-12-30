@@ -1,10 +1,8 @@
 """Sampling engine for inference and evaluation."""
+
 import torch
-import uuid
-from pathlib import Path
-from typing import Optional
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft import PeftModel, LoraConfig, get_peft_model
+from peft import LoraConfig, PeftModel, get_peft_model
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 class Sampler:
@@ -18,8 +16,8 @@ class Sampler:
     def load_model(
         self,
         model_id: str,
-        model_key: Optional[str] = None,
-        adapter_path: Optional[str] = None,
+        model_key: str | None = None,
+        adapter_path: str | None = None,
     ):
         """Load a model (possibly with adapter)."""
         model_key = model_key or model_id
@@ -42,6 +40,7 @@ class Sampler:
             if adapter_path.endswith(".safetensors"):
                 # Load safetensors format
                 from safetensors.numpy import load_file
+
                 torch_weights = load_file(adapter_path)
                 # Convert to tensor
                 adapter_state_dict = {k: torch.from_numpy(v) for k, v in torch_weights.items()}

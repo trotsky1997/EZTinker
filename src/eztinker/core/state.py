@@ -1,6 +1,7 @@
 """Global state manager for the EZTinker service."""
+
 import threading
-from typing import Dict, Optional
+
 from ..engine.run_manager import TrainingRun
 from ..engine.sampler import Sampler
 
@@ -9,13 +10,14 @@ class ServiceState:
     """Manages all training runs and jobs."""
 
     def __init__(self):
-        self.runs: Dict[str, TrainingRun] = {}
+        self.runs: dict[str, TrainingRun] = {}
         self.sampler = Sampler()
         self.lock = threading.Lock()
 
-    def create_run(self, base_model: str, lora_config, run_id: Optional[str] = None) -> str:
+    def create_run(self, base_model: str, lora_config, run_id: str | None = None) -> str:
         """Create a new training run."""
         import uuid
+
         run_id = run_id or f"run_{uuid.uuid4().hex[:8]}"
 
         with self.lock:

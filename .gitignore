@@ -12,6 +12,8 @@ MANIFEST
 venv/
 ENV/
 
+.claude/
+
 # Modeling
 checkpoints/
 data/

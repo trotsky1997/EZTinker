@@ -9,31 +9,31 @@ repos:
       - id: ruff-format
         name: "Ruff: 格式化"
         args: [check, --fix, --select, I, --exit-non-zero-on-fix]
-        stages: [commit]
+        stages: [pre-commit]
         types: [python]
 
       # 2. 完整 lint 检查并自动修复
       - id: ruff
         name: "Ruff: Lint + 自动修复"
         args: [--fix, --exit-non-zero-on-fix]
-        stages: [commit]
+        stages: [pre-commit]
         types: [python]
 
       # 3. 代码格式化
       - id: ruff-format
         name: "Ruff: 代码格式化"
-        stages: [commit]
+        stages: [pre-commit]
         types: [python]
 
-  # Ty (astral-sh/ty): 极快类型检查
-  - repo: https://github.com/astral-sh/ty-pre-commit
-    rev: v0.0.3
+  # Semgrep: 安全扫描（检测安全漏洞和有害模式）
+  - repo: https://github.com/semgrep/pre-commit
+    rev: v1.146.0
     hooks:
-      - id: ty-check
-        name: "Ty: 严格类型检查"
+      - id: semgrep
+        name: "Semgrep: 安全扫描"
+        args: ["--config", "auto", "--error"]
         verbose: true
-        stages: [commit]
-        # ty 会自动读取项目根目录的 ty.toml 配置（包含 error-on-warning = true）
+        stages: [pre-commit]
 
 # 配置
 fail_fast: true  # 一个失败就停止
@@ -42,4 +42,4 @@ minimum_pre_commit_version: "2.9.0"
 default_language_version:
   python: python3.11
 
-default_stages: [commit]
+default_stages: [pre-commit]

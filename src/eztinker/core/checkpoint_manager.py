@@ -1,7 +1,7 @@
 """Checkpoint manager."""
-from pathlib import Path
-from typing import Optional
+
 from datetime import datetime
+from pathlib import Path
 
 
 class CheckpointManager:
@@ -11,7 +11,7 @@ class CheckpointManager:
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
-    def list_checkpoints(self, run_id: Optional[str] = None) -> list[dict]:
+    def list_checkpoints(self, run_id: str | None = None) -> list[dict]:
         """List all checkpoints for a run (or all runs)."""
         checkpoints = []
 

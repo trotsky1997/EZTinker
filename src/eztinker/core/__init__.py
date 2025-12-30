@@ -1,5 +1,6 @@
 """Core modules."""
-from .state import state, ServiceState
-from .checkpoint_manager import CheckpointManager
 
-__all__ = ["state", "ServiceState", "CheckpointManager"]
+from .checkpoint_manager import CheckpointManager
+from .state import ServiceState, state
+
+__all__ = ["CheckpointManager", "ServiceState", "state"]

@@ -1,8 +1,8 @@
 # Pytest fixtures for EZTinker testing
-import pytest
 import sys
 from pathlib import Path
-import httpx
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -25,11 +25,16 @@ def sample_run_id(test_client):
     response = test_client.post(
         "/v1/runs",
         json={
-            "base_model": "gpt2",
-            "lora_config": {"r": 8, "lora_alpha": 16},
-        }
+            "base_model": "Qwen/Qwen2-0.5B-Instruct",
+            "lora_config": {
+                "r": 1,  # rank=1 for all Qwen testing
+                "lora_alpha": 2,
+                "lora_dropout": 0.05,
+                "target_modules": "all-linear",
+            },
+        },
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Request failed: {response.json()}"
     return response.json()["run_id"]
 
 

@@ -2,7 +2,7 @@
 
 import nox
 
-nox.options.sessions = ["fmt", "lint", "type-check", "test"]
+nox.options.sessions = ["fmt", "lint", "type-check", "security", "test"]
 nox.options.reuse_existing_virtualenvs = True
 
 
@@ -47,6 +47,16 @@ def type_check(session):
     # ty 会自动读取 ty.toml 配置，其中已经设置了 error-on-warning = true
     # 只检查核心代码 src/，跳过示例和演示文件
     session.run("ty", "check", "src/")
+
+
+@nox.session(name="security", python=["3.11"])
+def security_check(session):
+    """安全扫描（使用 Semgrep，检测已知安全漏洞和错误模式）."""
+    session.install("semgrep")
+    # 使用 auto 模式检测常见安全问题
+    # --error 使发现安全问题时报错
+    # 只检查核心代码 src/ 和测试 tests/，跳过示例和演示
+    session.run("semgrep", "scan", "src/", "tests/", "--config", "auto", "--error")
 
 
 @nox.session(name="test", python=["3.11"])

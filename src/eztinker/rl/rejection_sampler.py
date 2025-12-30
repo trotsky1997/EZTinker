@@ -1,11 +1,11 @@
 """Rejection sampling for supervised fine-tuning with Math-Verify evaluation."""
 
 import json
-import os
-import requests
-from typing import List, Dict, Tuple
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+import requests
+
 from ..dataset.gsm8k import GSM8KDataset
 
 MAX_WORKERS = 4
@@ -31,9 +31,9 @@ def create_training_run(base_model: str, lora_rank: int = 1) -> str:
                 "r": lora_rank,
                 "lora_alpha": lora_rank,  # Same as rank
                 "lora_dropout": 0.05,
-                "target_modules": ["q_proj", "v_proj"]
-            }
-        }
+                "target_modules": ["q_proj", "v_proj"],
+            },
+        },
     )
 
     if response.status_code != 200:
@@ -44,7 +44,7 @@ def create_training_run(base_model: str, lora_rank: int = 1) -> str:
     return run_id
 
 
-def wait_for_job(job_id: str, timeout: int = 120) -> Dict:
+def wait_for_job(job_id: str, timeout: int = 120) -> dict:
     """Wait for job completion and return result.
 
     Args:
@@ -73,16 +73,14 @@ def wait_for_job(job_id: str, timeout: int = 120) -> Dict:
         if i % 20 == 0 and i > 0:
             print(".", end="", flush=True)
         import time
+
         time.sleep(0.1)
 
     raise Exception(f"Job {job_id} timed out after {timeout} seconds")
 
 
 def generate_candidate_single(
-    prompt: str,
-    run_id: str,
-    temperature: float = 0.8,
-    max_new_tokens: int = 400
+    prompt: str, run_id: str, temperature: float = 0.8, max_new_tokens: int = 400
 ) -> str:
     """Generate a single candidate response.
 
@@ -102,8 +100,8 @@ def generate_candidate_single(
             "max_new_tokens": max_new_tokens,
             "temperature": temperature,
             "top_p": 0.95,
-            "do_sample": True
-        }
+            "do_sample": True,
+        },
     )
 
     job_id = response.json()["job_id"]
@@ -112,12 +110,8 @@ def generate_candidate_single(
 
 
 def generate_candidates(
-    prompt: str,
-    question: str,
-    run_id: str,
-    num_candidates: int = 8,
-    temperature: float = 0.8
-) -> List[str]:
+    prompt: str, question: str, run_id: str, num_candidates: int = 8, temperature: float = 0.8
+) -> list[str]:
     """Generate multiple candidate responses in parallel.
 
     Args:
@@ -142,12 +136,12 @@ def generate_candidates(
 def select_best_candidate_and_train(
     run_id: str,
     prompt: str,
-    candidates: List[str],
+    candidates: list[str],
     ground_truth: str,
     question: str,
     dataset: GSM8KDataset,
-    learning_rate: float = 2e-4
-) -> Dict:
+    learning_rate: float = 2e-4,
+) -> dict:
     """Score candidates and train on the best one in a single step.
 
     This function:
@@ -176,16 +170,18 @@ def select_best_candidate_and_train(
         strategy = eval_result.get("strategy", "unknown")
 
         # Composite metric: confidence + bonus for correctness
-        metric = (confidence + 0.5 * float(is_correct))
+        metric = confidence + 0.5 * float(is_correct)
 
-        candidate_results.append({
-            "index": i,
-            "text": candidate,
-            "confidence": confidence,
-            "is_correct": is_correct,
-            "strategy": strategy,
-            "metric": metric
-        })
+        candidate_results.append(
+            {
+                "index": i,
+                "text": candidate,
+                "confidence": confidence,
+                "is_correct": is_correct,
+                "strategy": strategy,
+                "metric": metric,
+            }
+        )
 
     # Select best candidate
     best = max(candidate_results, key=lambda x: x["metric"])
@@ -194,16 +190,12 @@ def select_best_candidate_and_train(
     if best["is_correct"] or best["confidence"] < 0.2:
         # Encode prompt + best response
         from transformers import AutoTokenizer
+
         tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B-Instruct")
 
         # For training, we want: [PROMPT] [BEST_RESPONSE] -> shift labels
         full_text = prompt + " " + best["text"]
-        tokens = tokenizer(
-            full_text,
-            return_tensors="pt",
-            truncation=True,
-            max_length=512
-        )
+        tokens = tokenizer(full_text, return_tensors="pt", truncation=True, max_length=512)
 
         # Forward-backward pass
         fb_response = requests.post(
@@ -211,7 +203,7 @@ def select_best_candidate_and_train(
             json={
                 "input_ids": tokens["input_ids"].tolist()[0],
                 "target_ids": tokens["input_ids"].tolist()[0],
-            }
+            },
         )
         wait_for_job(fb_response.json()["job_id"])
 
@@ -221,7 +213,7 @@ def select_best_candidate_and_train(
             json={
                 "learning_rate": learning_rate,
                 "weight_decay": 0.01,
-            }
+            },
         )
         wait_for_job(optim_response.json()["job_id"])
 
@@ -241,11 +233,11 @@ def select_best_candidate_and_train(
             "confidence": best["confidence"],
             "selected_text": best["text"][:200] + "...",
             "trained": False,
-            "skip_reason": "Poor candidate quality"
+            "skip_reason": "Poor candidate quality",
         }
 
 
-def save_buffer(buffer_path: Path, data: List[Dict]):
+def save_buffer(buffer_path: Path, data: list[dict]):
     """Save rejection buffer to JSONL file.
 
     Args:
@@ -254,14 +246,14 @@ def save_buffer(buffer_path: Path, data: List[Dict]):
     """
     buffer_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(buffer_path, 'w') as f:
+    with open(buffer_path, "w") as f:
         for entry in data:
-            f.write(json.dumps(entry) + '\n')
+            f.write(json.dumps(entry) + "\n")
 
     print(f"✓ Saved {len(data)} entries to {buffer_path}")
 
 
-def load_buffer(buffer_path: Path) -> List[Dict]:
+def load_buffer(buffer_path: Path) -> list[dict]:
     """Load rejection buffer from JSONL file.
 
     Args:
@@ -274,7 +266,7 @@ def load_buffer(buffer_path: Path) -> List[Dict]:
         return []
 
     data = []
-    with open(buffer_path, 'r') as f:
+    with open(buffer_path) as f:
         for line in f:
             data.append(json.loads(line))
 
@@ -288,8 +280,8 @@ def populate_buffer(
     buffer_path: Path,
     num_examples: int = 50,
     candidates_per_example: int = 8,
-    temperature: float = 0.8
-) -> List[Dict]:
+    temperature: float = 0.8,
+) -> list[dict]:
     """Pre-populate rejection sampling buffer with top candidates.
 
     Args:
@@ -303,7 +295,7 @@ def populate_buffer(
     Returns:
         List of buffer entries with best candidates
     """
-    print(f"\n=== Populating Rejection Buffer ===")
+    print("\n=== Populating Rejection Buffer ===")
     print(f"Examples: {num_examples}")
     print(f"Candidates per example: {candidates_per_example}")
     print(f"Buffer path: {buffer_path}")
@@ -311,7 +303,7 @@ def populate_buffer(
     buffer_entries = []
 
     for i in range(min(num_examples, len(dataset))):
-        print(f"\n[{i+1}/{num_examples}] Processing example...")
+        print(f"\n[{i + 1}/{num_examples}] Processing example...")
 
         # Get example
         question, prompt, ground_truth = dataset.get_example_question(i)
@@ -323,7 +315,7 @@ def populate_buffer(
             question=question,
             run_id=run_id,
             num_candidates=candidates_per_example,
-            temperature=temperature
+            temperature=temperature,
         )
 
         # Evaluate candidates and select best
@@ -335,28 +327,32 @@ def populate_buffer(
             ground_truth=ground_truth,
             question=question,
             dataset=dataset,
-            learning_rate=2e-4
+            learning_rate=2e-4,
         )
 
         # Compute mean confidence across candidates
         mean_confidence = result["confidence"]
 
         # Store in buffer
-        buffer_entries.append({
-            "question_id": i,
-            "question": question,
-            "ground_truth": ground_truth,
-            "prompt": prompt,
-            "selected_text": result["selected_text"],
-            "selected_score": result["selected_score"],
-            "selected_is_correct": result["selected_is_correct"],
-            "mean_confidence": mean_confidence,
-            "trained": result["trained"],
-            "temperature": temperature,
-        })
+        buffer_entries.append(
+            {
+                "question_id": i,
+                "question": question,
+                "ground_truth": ground_truth,
+                "prompt": prompt,
+                "selected_text": result["selected_text"],
+                "selected_score": result["selected_score"],
+                "selected_is_correct": result["selected_is_correct"],
+                "mean_confidence": mean_confidence,
+                "trained": result["trained"],
+                "temperature": temperature,
+            }
+        )
 
-        print(f"  Best candidate: score={result['selected_score']:.2f}, "
-              f"correct={result['selected_is_correct']}, trained={result['trained']}")
+        print(
+            f"  Best candidate: score={result['selected_score']:.2f}, "
+            f"correct={result['selected_is_correct']}, trained={result['trained']}"
+        )
 
     # Save buffer
     save_buffer(buffer_path, buffer_entries)
@@ -365,17 +361,16 @@ def populate_buffer(
     correct_count = sum(1 for x in buffer_entries if x["selected_is_correct"])
     trained_count = sum(1 for x in buffer_entries if x["trained"])
 
-    print(f"\n=== Buffer Statistics ===")
+    print("\n=== Buffer Statistics ===")
     print(f"Total entries: {len(buffer_entries)}")
-    print(f"Correct answers: {correct_count} ({100*correct_count/len(buffer_entries):.1f}%)")
-    print(f"Entries trained on: {trained_count} ({100*trained_count/len(buffer_entries):.1f}%)")
+    print(f"Correct answers: {correct_count} ({100 * correct_count / len(buffer_entries):.1f}%)")
+    print(f"Entries trained on: {trained_count} ({100 * trained_count / len(buffer_entries):.1f}%)")
 
     return buffer_entries
 
 
 if __name__ == "__main__":
     # Quick test
-    import sys
     import time
 
     print("=== Testing Rejection Sampler ===\n")
@@ -407,7 +402,7 @@ if __name__ == "__main__":
         buffer_path=buffer_path,
         num_examples=2,
         candidates_per_example=2,
-        temperature=0.8
+        temperature=0.8,
     )
 
     print("\n✓ Rejection sampler test completed")

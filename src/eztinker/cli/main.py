@@ -1,16 +1,15 @@
 """CLI interface for EZTinker."""
-import typer
-import time
-import requests
-import json
+
 import os
 import sys
-from typing import Optional
+import time
+
+import requests
+import typer
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-
+from rich.table import Table
 
 app = typer.Typer(
     help="EZTinker - Minimal Tinker clone for distributed training",
@@ -40,6 +39,7 @@ def _check_server_health(base_url: str, timeout: int = 3) -> bool:
 def _wait_for_server(base_url: str, timeout: int = 30) -> bool:
     """Wait for server to become available."""
     import time
+
     start_time = time.time()
     while time.time() - start_time < timeout:
         if _check_server_health(base_url):
@@ -74,12 +74,14 @@ def server(
     # Create checkpoint directory if it doesn't exist
     os.makedirs(checkpoints_dir, exist_ok=True)
 
-    console.print(Panel(
-        f"[bold cyan]EZTinker Server[/bold cyan]\n"
-        f"Host: {host}\nPort: {port}\nWorkers: {workers}\n"
-        f"Reload: {reload}\nCheckpoints: [file]{checkpoints_dir}[/file]",
-        title="Server Configuration"
-    ))
+    console.print(
+        Panel(
+            f"[bold cyan]EZTinker Server[/bold cyan]\n"
+            f"Host: {host}\nPort: {port}\nWorkers: {workers}\n"
+            f"Reload: {reload}\nCheckpoints: [file]{checkpoints_dir}[/file]",
+            title="Server Configuration",
+        )
+    )
 
     console.print(f"\n[green]📦 Starting EZTinker server on http://{host}:{port}[/green]\n")
 
@@ -88,7 +90,7 @@ def server(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
-        transient=True
+        transient=True,
     ) as progress:
         progress.add_task(description="Initializing server...")
         uvicorn.run(
@@ -102,10 +104,8 @@ def server(
 
 @app.command()
 def create(
-    base_model: str = typer.Option(
-        "gpt2", "--model", "-m", help="Base model ID or path"
-    ),
-    run_id: Optional[str] = typer.Option(None, "--run-id", help="Custom run ID"),
+    base_model: str = typer.Option("gpt2", "--model", "-m", help="Base model ID or path"),
+    run_id: str | None = typer.Option(None, "--run-id", help="Custom run ID"),
 ):
     """Create a new training run."""
     url = f"{_get_base_url()}/v1/runs"
@@ -239,13 +239,13 @@ def main():
 
     用户在本地写训练循环/算法，服务端负责把操作可靠地跑在 GPU 集群上。
     """
-    pass
 
 
 @app.command()
 def version():
     """Show version information."""
     from .. import __version__
+
     console.print(f"[bold cyan]EZTinker Version:[/bold cyan] {__version__}")
     console.print(f"[dim]Python:[/dim] {sys.version.split()[0]}")
     console.print(f"[dim]API URL:[/dim] {_get_base_url()}")
@@ -260,7 +260,7 @@ def health():
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
-        transient=True
+        transient=True,
     ) as progress:
         task = progress.add_task(description="Checking server health...")
 
@@ -306,24 +306,21 @@ def status():
         f"[bold green]✓ Server is running[/bold green]\n"
         f"URL: [file]{base_url}[/file]\n"
         f"Active runs: [bold cyan]{len(runs)}[/bold cyan]",
-        title="Server Status"
+        title="Server Status",
     )
     console.print(panel)
 
     if runs:
         table = Table("Run ID", "Base Model", title="Active Runs")
         for run in runs:
-            table.add_row(
-                f"[bold]{run['run_id']}[/bold]",
-                run['base_model']
-            )
+            table.add_row(f"[bold]{run['run_id']}[/bold]", run["base_model"])
         console.print(table)
     else:
         console.print("[dim]No active training runs[/dim]")
 
 
 @app.command()
-def checkpoints(run_id: Optional[str] = None):
+def checkpoints(run_id: str | None = None):
     """List checkpoints for a run or all runs.
 
     Examples:
@@ -341,12 +338,8 @@ def checkpoints(run_id: Optional[str] = None):
 
             table = Table("Name", "Created At", "Size", title=f"Checkpoints for {run_id}")
             for ckpt in checkpoints:
-                size_mb = ckpt['size_bytes'] / (1024 * 1024)
-                table.add_row(
-                    ckpt['name'],
-                    ckpt['created_at'],
-                    f"{size_mb:.1f} MB"
-                )
+                size_mb = ckpt["size_bytes"] / (1024 * 1024)
+                table.add_row(ckpt["name"], ckpt["created_at"], f"{size_mb:.1f} MB")
             console.print(table)
         else:
             response = requests.get(f"{base_url}/v1/runs")
@@ -393,12 +386,20 @@ def demo():
 
     try:
         import subprocess
-        subprocess.run([
-            sys.executable, "rejection_sft_demo.py",
-            "--max-samples", "20",
-            "--num-candidates", "3",
-            "--epochs", "2",
-        ], check=True)
+
+        subprocess.run(
+            [
+                sys.executable,
+                "rejection_sft_demo.py",
+                "--max-samples",
+                "20",
+                "--num-candidates",
+                "3",
+                "--epochs",
+                "2",
+            ],
+            check=True,
+        )
         console.print("\n[green]✓ Demo completed![/green]")
 
     except Exception as e:

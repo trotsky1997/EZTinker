@@ -18,16 +18,15 @@ The script will show 3 different ways to interact with the server:
 """
 
 import os
-import sys
 
 
 def example1_greeting_and_version():
     """Example 1: Check health and get version (Context Manager Style)."""
     from eztinker import EZTinkerClient
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Example 1: Check Server Health (Context Manager Style)")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Use context manager - automatically closes session
     try:
@@ -58,16 +57,12 @@ def example2_load_gsm8k_dataset():
     """Example 2: Load GSM8K dataset."""
     from eztinker import GSM8KDataset
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Example 2: Load GSM8K Dataset")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     print("Loading GSM8K dataset (small sample)...")
-    dataset = GSM8KDataset(
-        split="train",
-        max_samples=10,
-        use_math_verify=False
-    )
+    dataset = GSM8KDataset(split="train", max_samples=10, use_math_verify=False)
 
     print(f"✓ Loaded {len(dataset)} training examples")
     print(f"  example: {dataset.get_example_question(0)[0][:60]}...")
@@ -85,33 +80,32 @@ question, prompt, answer = dataset.get_example_question(0)
 
 def example3_load_sharegpt_dataset():
     """Example 3: Load ShareGPT dataset with dialect detection."""
-    from eztinker import ShareGPTDataset
     from transformers import AutoTokenizer
 
-    print("\n" + "="*70)
+    from eztinker import ShareGPTDataset
+
+    print("\n" + "=" * 70)
     print("Example 3: Load ShareGPT Dataset (with automatic dialect detection)")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     try:
         tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B-Instruct")
         print("Loading ShareGPT dataset...")
         dataset = ShareGPTDataset(
-            file_path="examples/sharegpt_dialect_b.json",
-            tokenizer=tokenizer,
-            max_samples=5
+            file_path="examples/sharegpt_dialect_b.json", tokenizer=tokenizer, max_samples=5
         )
 
-        print(f"✓ Dataset loaded successfully!")
+        print("✓ Dataset loaded successfully!")
         print(f"  Total entries: {dataset.stats['total_loaded']}")
         print(f"  Valid conversations: {dataset.stats['valid_conversations']}")
-        print(f"  Dialect detection:")
-        for dialect, count in dataset.stats['dialect_counts'].items():
+        print("  Dialect detection:")
+        for dialect, count in dataset.stats["dialect_counts"].items():
             if count > 0:
                 print(f"    - {dialect}: {count}")
 
         # Show first conversation
         conv = dataset[0]
-        print(f"\n  First conversation:")
+        print("\n  First conversation:")
         print(f"    ID: {conv['id']}")
         print(f"    Turns: {len(conv['turns'])}")
         print(f"    System: {conv['system'][:50]}...")
@@ -140,9 +134,9 @@ def example4_create_run():
     """Example 4: Create a training run."""
     from eztinker import EZTinkerClient
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Example 4: Create Training Run")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     print("Connecting to server...")
     try:
@@ -166,7 +160,7 @@ def example4_create_run():
             run_id = client.create_run(
                 base_model="Qwen/Qwen2-0.5B-Instruct",
                 lora_rank=1,  # Very small LoRA for demonstration
-                lora_alpha=2
+                lora_alpha=2,
             )
 
             print(f"✓ Created training run: {run_id}")
@@ -175,7 +169,7 @@ def example4_create_run():
             print("\nUpdated training runs:")
             runs = client.get_runs()
             for run in runs:
-                if run['run_id'] == run_id:
+                if run["run_id"] == run_id:
                     print(f"  - {run['run_id']}: {run['base_model']} (← NEW)")
 
     except Exception as e:
@@ -200,9 +194,9 @@ def example5_generate_samples():
     """Example 5: Generate text samples."""
     from eztinker import EZTinkerClient
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Example 5: Generate Text Samples")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     if not os.environ.get("EZTINKER_BASE_URL"):
         print("Setting default to localhost:8000...")
@@ -216,7 +210,7 @@ def example5_generate_samples():
                 max_new_tokens=100,
                 temperature=0.8,
                 top_p=0.9,
-                do_sample=True
+                do_sample=True,
             )
 
             print("Generated text:")
@@ -248,11 +242,11 @@ print(text)
 
 def example6_rejection_sampling():
     """Example 6: Rejection Sampling Workflow."""
-    from eztinker import GSM8KDataset, create_training_run, generate_candidates
+    from eztinker import GSM8KDataset
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Example 6: Rejection Sampling Training")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     print("This example shows the rejection sampling workflow:")
     print("1. Load dataset")
@@ -308,9 +302,9 @@ candidates = generate_candidates(
 
 def example7_compare_raw_api_vs_client():
     """Example 7: Compare raw API vs client API."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Example 7: Raw HTTP API vs Client API Comparison")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     print("OLD STYLE - Raw HTTP API calls:\n")
     raw_code = """
@@ -340,7 +334,7 @@ job = response.json()
 """
     print(raw_code)
 
-    print("-"*70)
+    print("-" * 70)
     print("\nNEW STYLE - Elegant Client API:\n")
     new_code = """
 from eztinker import EZTinkerClient
@@ -359,9 +353,9 @@ with EZTinkerClient() as client:
 
 def main():
     """Run all examples."""
-    print("\n" + "🎯"*35)
+    print("\n" + "🎯" * 35)
     print("EZTinker Client API Examples")
-    print("🎯"*35)
+    print("🎯" * 35)
 
     print("\nThese examples demonstrate the elegant Python API for EZTinker.")
     print("Use the examples as a reference for building your own training workflows.")
@@ -376,13 +370,13 @@ def main():
     example7_compare_raw_api_vs_client()
 
     # Final message
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Examples Complete!")
-    print("="*70)
+    print("=" * 70)
     print("\nNext steps:")
     print("  1. Start the server:  eztinker server")
     print("  2. Create a run:      eztinker create --model MODEL")
-    print("  3. Generate text:     eztinker sample \"Your prompt here\"")
+    print('  3. Generate text:     eztinker sample "Your prompt here"')
     print("  4. See all commands:  eztinker --help")
     print("  5. Run these examples:")
     print("       uv run python examples/example_client_api.py")

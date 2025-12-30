@@ -1,36 +1,53 @@
-# Ruff configuration for EZTinker
+# Ruff config for “vibe coding” + Claude Code
+# 目标：低噪音 + 强约束（防糊弄），并支持一键自动修复
+# 建议本地使用：
+#   ruff check --fix --select I .
+#   ruff check --fix .
+#   ruff format .
+# CI 使用：
+#   ruff check .
+#   ruff format --check .
 
-[tool.ruff]
+target-version = "py312"
 line-length = 100
-target-version = "py311"
 
-[tool.ruff.lint]
-# Select rules
-select = [
-    "E",        # Pyflakes errors
-    "F",        # Pyflakes warnings
-    "I",        # isort
-    "N",        # pep8-naming
-    "C",        # flake8-comprehensions
-    "UP",       # pyupgrade
+extend-exclude = [
+  ".git",
+  ".venv",
+  "venv",
+  "__pycache__",
+  "build",
+  "dist",
+  ".mypy_cache",
+  ".pytest_cache",
+  ".ruff_cache",
+  "node_modules",
+  "migrations", # 如不需要可删
 ]
-ignore = []
 
-[tool.ruff.format]
-# Use double quotes by default
+[lint]
+select = [
+  "E",    # pycodestyle errors（偏真实错误）
+  "F",    # pyflakes（未定义/未使用等硬错误）
+  "I",    # import 排序
+  "UP",   # pyupgrade（按目标版本升级语法）
+  "B",    # bugbear（常见坑）
+  "SIM",  # simplify（简化）
+  "C4",   # comprehensions（推导式改进）
+  "PIE",  # 小而美的坑位规则
+  "RUF",  # ruff 自带规则
+]
+ignore = [
+  "E501", # 行过长（交给 formatter + line-length）
+]
+
+fixable = ["ALL"]
+unfixable = []
+
+[lint.per-file-ignores]
+"__init__.py" = ["F401"] # 允许“导入但仅用于导出 API”
+
+[format]
 quote-style = "double"
-
-[tool.ruff.lint.isort]
-# Forces "from X import Y"
-force-single-line = false
-lines-after-imports = 2
-
-[tool.ruff.lint.flake8-quotes]
-inline-quotes = "double"
-multiline-quotes = "single"
-docstring-quotes = "double"
-
-[tool.ruff.lint.per-file-ignores]
-# Ignore certain checks
-"__init__.py" = ["F401"]
-"tests/*" = ["F403"]
+indent-style = "space"
+line-ending = "auto"
