@@ -93,3 +93,35 @@ class EvaluationRequest(BaseModel):
     batches: List[EvaluationBatch] = Field(description="Evaluation batches")
     temperature: float = Field(1.0, description="Temperature for generation (not used now)")
     max_new_tokens: int = Field(50, description="Max tokens (not used now)")
+
+
+# =============================================================================
+# ShareGPT Data Models
+# =============================================================================
+
+class ShareGPTMessage(BaseModel):
+    """Single message in a conversation (replaces ConversationTurn)."""
+    # Support both dialects
+    from_role: Optional[str] = Field(None, alias="from", description="Speaker role (human/gpt)")
+    role: Optional[str] = Field(None, description="Speaker role (user/assistant)")
+    value: Optional[str] = Field(None, description="Message content (dialect A)")
+    content: Optional[str] = Field(None, description="Message content (dialect B)")
+
+
+class ShareGPTConversation(BaseModel):
+    """ShareGPT conversation format."""
+    id: str = Field(description="Unique conversation ID")
+    conversations: Optional[List[ShareGPTMessage]] = Field(None, description="Conversation turns (dialect A)")
+    messages: Optional[List[ShareGPTMessage]] = Field(None, description="Message list (dialect B)")
+    system: Optional[str] = Field(None, description="System prompt")
+    dataset: Optional[str] = Field(None, description="Dataset source")
+
+    model_config = {"populate_by_name": True}  # Allow alias "from"
+
+
+class ShareGPTBatchInput(BaseModel):
+    """Batch input for ShareGPT format training."""
+    conversations: List[ShareGPTConversation] = Field(description="List of ShareGPT conversations")
+    tokenizer_name: str = Field(description="Tokenizer model name for formatting")
+    max_length: int = Field(2048, description="Maximum sequence length")
+    system_prompt: Optional[str] = Field(None, description="System prompt template")

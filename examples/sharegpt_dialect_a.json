@@ -1,0 +1,52 @@
+[
+  {
+    "id": "sample_001",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "What is the capital of France?"
+      },
+      {
+        "from": "gpt",
+        "value": "The capital of France is Paris."
+      },
+      {
+        "from": "human",
+        "value": "Tell me more about Paris."
+      },
+      {
+        "from": "gpt",
+        "value": "Paris is the capital and most populous city of France, with an estimated population of 2.2 million people. It is known for art, fashion, culture, and the Eiffel Tower."
+      }
+    ],
+    "system": "You are a helpful assistant.",
+    "dataset": "example"
+  },
+  {
+    "id": "sample_002",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Write a short Python function to calculate factorial."
+      },
+      {
+        "from": "gpt",
+        "value": "Here's a Python function to calculate factorial:\n\n```python\ndef factorial(n):\n    if n == 0 or n == 1:\n        return 1\n    return n * factorial(n - 1)\n\n# Example usage\nprint(factorial(5))  # Output: 120\n```"
+      }
+    ],
+    "dataset": "code-example"
+  },
+  {
+    "id": "sample_003",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Explain quantum computing in simple terms."
+      },
+      {
+        "from": "gpt",
+        "value": "Quantum computing uses quantum mechanical phenomena like superposition and entanglement to process information. Instead of bits (0 or 1), quantum computers use qubits that can exist in multiple states simultaneously, allowing them to solve certain problems much faster than classical computers."
+      }
+    ]
+  }
+]
